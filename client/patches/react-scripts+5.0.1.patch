@@ -1,0 +1,39 @@
+diff --git a/node_modules/react-scripts/config/webpackDevServer.config.js b/node_modules/react-scripts/config/webpackDevServer.config.js
+index 7f56a3a..d4b5c6e 100644
+--- a/node_modules/react-scripts/config/webpackDevServer.config.js
++++ b/node_modules/react-scripts/config/webpackDevServer.config.js
+@@ -111,17 +111,23 @@ module.exports = function (proxy, allowedHost) {
+     },
+     // `proxy` is run between `before` and `after` `webpack-dev-server` hooks
+     proxy,
+-    onBeforeSetupMiddleware(devServer) {
++    setupMiddlewares(middlewares, devServer) {
+       // Keep `evalSourceMapMiddleware`
+       // middlewares before `redirectServedPath` otherwise will not have any effect
+       // This lets us fetch source contents from webpack for the error overlay
+-      devServer.app.use(evalSourceMapMiddleware(devServer));
++      middlewares.unshift(evalSourceMapMiddleware(devServer));
+ 
+       if (fs.existsSync(paths.proxySetup)) {
+         // This registers user provided middleware for proxy reasons
+         require(paths.proxySetup)(devServer.app);
+       }
+-    },
+-    onAfterSetupMiddleware(devServer) {
++
+       // Redirect to `PUBLIC_URL` or `homepage` from `package.json` if url not match
+-      devServer.app.use(redirectServedPath(paths.publicUrlOrPath));
++      middlewares.push(redirectServedPath(paths.publicUrlOrPath));
+ 
+       // This service worker file is effectively a 'no-op' that will reset any
+       // previous service worker registered for the same host:port combination.
+@@ -129,7 +135,9 @@ module.exports = function (proxy, allowedHost) {
+       // it used the same host and port.
+       // https://github.com/facebook/create-react-app/issues/2272#issuecomment-302832432
+-      devServer.app.use(noopServiceWorkerMiddleware(paths.publicUrlOrPath));
++      middlewares.push(noopServiceWorkerMiddleware(paths.publicUrlOrPath));
++
++      return middlewares;
+     },
+   };
+ };

@@ -1,0 +1,6 @@
+{
+  "model": "qwen2.5:7b",
+  "baseUrl": "http://localhost:11434",
+  "temperature": 0.3,
+  "timeout": 30000
+}
