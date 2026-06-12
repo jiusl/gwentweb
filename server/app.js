@@ -264,7 +264,7 @@ const clientBuildPath = path.join(__dirname, '..', 'client', 'build');
 const fs = require('fs');
 if (fs.existsSync(clientBuildPath)) {
   app.use(express.static(clientBuildPath));
-  app.get('*', (req, res) => {
+  app.get('/{*path}', (req, res) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
       res.sendFile(path.join(clientBuildPath, 'index.html'));
     }
