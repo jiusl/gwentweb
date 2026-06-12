@@ -43,6 +43,8 @@ const LEADER_DESC = {
   '弗尔泰斯特:攻城之王': '号角 — 选择一个排，使其非英雄单位战力翻倍',
 };
 
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
 export default function DeckBuilder({ deck, setDeck, leader, setLeader, selectedFaction, setSelectedFaction, playerName }) {
   const [allCards, setAllCards] = useState([]);
   const [factions, setFactions] = useState({});
@@ -51,8 +53,6 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
   const [savedDecks, setSavedDecks] = useState([]);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const API_BASE = process.env.REACT_APP_API_URL || '';
 
   useEffect(() => {
     fetch(`${API_BASE}/api/cards`)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Heading, Text, VStack, HStack, Spinner, Button, Input,
   Flex, Badge, createToaster, Toaster
@@ -29,6 +29,7 @@ function App() {
   const [myId, setMyId] = useState(null);
 
   // 连接后自动加入大厅（但需要先输入名字）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isConnected && nameSubmitted) {
       joinLobby(playerName);
@@ -80,13 +81,13 @@ function App() {
     respondInvite(inviteId, false);
   };
 
-  const handleStartMatch = (opponentId) => {
+  const handleStartMatch = useCallback((opponentId) => {
     if (deck.filter(c => c.type === 'unit').length < 22 || !leader) {
       toaster.create({ title: '卡组无效', description: '请配置完整的卡组', type: 'warning' });
       return;
     }
     startMatch(opponentId, deck, leader);
-  };
+  }, [deck, leader, startMatch]);
 
   // AI 邀请自动开始对战（无需手动点"开始对战"按钮）
   const prevInviteResponseRef = React.useRef(null);
@@ -102,7 +103,7 @@ function App() {
         handleStartMatch(inviteResponse.from);
       }, 600);
     }
-  }, [inviteResponse]);
+  }, [inviteResponse, handleStartMatch]);
 
   // ── 连接中 ──
   if (!isConnected) {

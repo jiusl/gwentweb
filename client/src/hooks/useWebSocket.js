@@ -20,7 +20,8 @@ export const useWebSocket = () => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = io();
+    // 开发环境需设 REACT_APP_SOCKET_URL=http://localhost:5000，生产环境不设（走同源）
+    socketRef.current = io(process.env.REACT_APP_SOCKET_URL);
 
     socketRef.current.on('connect', () => {
       console.log('WebSocket 已连接');
