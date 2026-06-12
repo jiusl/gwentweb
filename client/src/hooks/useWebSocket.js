@@ -20,7 +20,7 @@ export const useWebSocket = () => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000');
+    socketRef.current = io();
 
     socketRef.current.on('connect', () => {
       console.log('WebSocket 已连接');
