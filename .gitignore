@@ -7,9 +7,6 @@ node_modules/
 # 数据库
 server/db/*.db
 
-# 构建产物
-client/build/
-
 # Python 虚拟环境
 .venv/
 venv/
