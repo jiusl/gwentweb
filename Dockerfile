@@ -20,8 +20,8 @@ COPY server/ server/
 # 复制前端构建产物
 COPY --from=builder /app/client/build /app/client/build
 
-# 复制根配置
-COPY .env.example /app/.env.example
+# 复制根配置（dotenv 读取 .env，用生产环境模板）
+COPY .env.production.example /app/.env
 COPY README.md /app/README.md
 
 # 复制训练数据（AI 对战历史，可选）

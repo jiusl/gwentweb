@@ -7,6 +7,7 @@ const cors = require('cors');
 const GameManager = require('./gameLogic/gameManager');
 const { createAI } = require('./ai');
 const aiPlayer = createAI('ollama');
+const heuristicAI = createAI('heuristic');  // 无 Ollama 时 / Ollama 失败时的回退
 const gameManager = new GameManager();
 
 // ── AI 实例映射：多 AI 对战时按玩家 ID 使用不同模型 ──
@@ -46,7 +47,7 @@ async function executeAITurn(gameId, aiId, io) {
     if (!game || game.status !== 'playing' || game.activePlayer !== aiId) return;
 
     // 获取该 AI 玩家的专属实例（AI 对战用），否则回退到默认
-    const ai = aiInstanceMap.get(aiId) || aiPlayer;
+    const ai = aiInstanceMap.get(aiId) || aiPlayer || heuristicAI;
 
     const decision = await _withTimeout(
       ai.decideAction(game, aiId),

@@ -28,6 +28,15 @@ const path = require('path');
 const { buildToolPrompt, executeTool, parseToolCall } = require('./tools');
 const { collectSkills, getCounterFaction } = require('./skills');
 
+// 延迟导入 HeuristicAI（避免循环依赖）
+let _HeuristicAI = null;
+function _getHeuristicAI() {
+  if (!_HeuristicAI) {
+    _HeuristicAI = require('./HeuristicAI');
+  }
+  return _HeuristicAI;
+}
+
 // ── 从配置文件加载默认值，允许运行时 options 覆盖 ──
 const CONFIG_PATH = path.join(__dirname, 'ollama-config.json');
 let _defaultOptions = null;
@@ -355,24 +364,11 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
   // ──────── 回退逻辑 ────────
 
   _fallbackDecision(game, playerId) {
-    const player = game.players[playerId];
-    const hand = player.hand;
-
-    let bestIdx = 0;
-    let bestPow = -1;
-    for (let i = 0; i < hand.length; i++) {
-      if (hand[i].type !== 'special' && hand[i].power > bestPow) {
-        bestPow = hand[i].power;
-        bestIdx = i;
-      }
-    }
-
-    if (bestPow === -1) {
-      const card = hand[0];
-      return { action: 'playCard', cardIndex: 0, row: card.row || 'melee' };
-    }
-
-    return { action: 'playCard', cardIndex: bestIdx, row: hand[bestIdx].row || 'melee' };
+    // 回退到优化后的 HeuristicAI（三层决策 + 9级效用 + 阵营策略）
+    console.log('  ♟ [OllamaAgent] 回退到 HeuristicAI 决策');
+    const HeuristicAI = _getHeuristicAI();
+    const h = new HeuristicAI();
+    return h.decideAction(game, playerId);
   }
 
   // ──────── 回合反馈 ────────
