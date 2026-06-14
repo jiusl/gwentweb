@@ -281,7 +281,18 @@ app.use('/api', require('./routes'));
 const clientBuildPath = path.join(__dirname, '..', 'client', 'build');
 const fs = require('fs');
 if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
+  // 静态资源（含 hash）缓存 1 年
+  app.use('/static', express.static(path.join(clientBuildPath, 'static'), {
+    maxAge: '1y', immutable: true
+  }));
+  // index.html 不缓存，确保浏览器总是获取最新版本
+  app.use(express.static(clientBuildPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
   app.get('/{*path}', (req, res) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
       res.sendFile(path.join(clientBuildPath, 'index.html'));
