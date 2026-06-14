@@ -25,7 +25,7 @@ COPY .env.production.example /app/.env
 COPY README.md /app/README.md
 
 # 复制训练数据（AI 对战历史，可选）
-COPY training_data.json /app/training_data.json 2>/dev/null || true
+RUN bash -c 'cp training_data.json /app/ 2>/dev/null || true'
 
 ENV NODE_ENV=production
 ENV PORT=5000
