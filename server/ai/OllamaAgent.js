@@ -24,18 +24,10 @@
  */
 
 const AIInterface = require('./AIInterface');
+const HeuristicAI = require('./HeuristicAI');
 const path = require('path');
 const { buildToolPrompt, executeTool, parseToolCall } = require('./tools');
 const { collectSkills, getCounterFaction } = require('./skills');
-
-// 延迟导入 HeuristicAI（避免循环依赖）
-let _HeuristicAI = null;
-function _getHeuristicAI() {
-  if (!_HeuristicAI) {
-    _HeuristicAI = require('./HeuristicAI');
-  }
-  return _HeuristicAI;
-}
 
 // ── 从配置文件加载默认值，允许运行时 options 覆盖 ──
 const CONFIG_PATH = path.join(__dirname, 'ollama-config.json');
@@ -366,7 +358,6 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
   _fallbackDecision(game, playerId) {
     // 回退到优化后的 HeuristicAI（三层决策 + 9级效用 + 阵营策略）
     console.log('  ♟ [OllamaAgent] 回退到 HeuristicAI 决策');
-    const HeuristicAI = _getHeuristicAI();
     const h = new HeuristicAI();
     return h.decideAction(game, playerId);
   }

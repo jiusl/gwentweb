@@ -417,22 +417,24 @@ class GameManager {
     const aiP = aiPlayerId ? game.players[aiPlayerId] : null;
 
     const humanWon = game.gameWinner === humanPlayerId;
-    const aiWon = game.gameWinner === aiPlayerId;
 
-    // 对于 AI 对战：player1 = 真人(匿名默认1), player2 = NULL
-    // player2_id 为 NULL 表示 AI 对战
+    // 通过玩家名查找或创建数据库用户（而非硬编码 ID=1）
+    const humanName = game.humanName || 'anonymous';
+    const dbUser = dbUtils.findOrCreateUser(humanName);
+    const humanDbId = dbUser ? dbUser.id : 1;
+
     await dbUtils.saveMatch({
       matchUuid: game.gameId,
-      player1Id: 1,                          // 匿名用户 ID（后续接入认证后替换）
+      player1Id: humanDbId,
       player2Id: null,                       // NULL 表示 AI 对战
-      winnerId: humanWon ? 1 : null,         // 真人赢了记 1，AI 赢了记 null
+      winnerId: humanWon ? humanDbId : null,
       player1Score: humanP ? humanP.roundsWon : 0,
       player2Score: aiP ? aiP.roundsWon : 0,
       roundsPlayed: game.currentRound,
       matchType: isAIGame ? 'vs_ai' : 'casual',
     });
 
-    console.log(`💾 对局 ${game.gameId} 已保存 (${isAIGame ? 'vs_ai' : 'casual'})`);
+    console.log(`💾 对局 ${game.gameId} 已保存 (${isAIGame ? 'vs_ai' : 'casual'}, 用户: ${humanName})`);
   }
 
   // 小局结算（对外 API，可手动调用）

@@ -94,6 +94,26 @@ router.post('/decks/save', async (req, res) => {
     if (!username || !deckName || !faction || !cards || !cards.length) {
       return res.status(400).json({ error: '缺少必要字段: username, deckName, faction, cards' });
     }
+
+    // 验证阵营合法性
+    const validFactions = ['northern', 'nilfgaard', 'scoiatael', 'monsters', 'neutral'];
+    if (!validFactions.includes(faction)) {
+      return res.status(400).json({ error: `无效的阵营: ${faction}，可选: ${validFactions.join(', ')}` });
+    }
+
+    // 验证卡牌数组结构
+    if (!Array.isArray(cards) || cards.some(c => !c.id)) {
+      return res.status(400).json({ error: 'cards 格式错误，每项需包含 id' });
+    }
+
+    // 验证 deckId（更新时）
+    if (deckId !== undefined && deckId !== null) {
+      const parsedId = parseInt(deckId, 10);
+      if (isNaN(parsedId) || parsedId <= 0) {
+        return res.status(400).json({ error: '无效的 deckId' });
+      }
+    }
+
     const user = await dbUtils.findOrCreateUser(username);
 
     // 将客户端卡牌数组转换为 cardIds 格式 [{id, count}]

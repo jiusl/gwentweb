@@ -1,69 +1,11 @@
 import React, { useState } from 'react';
 import { Box, Flex, Text, Grid, HStack } from '@chakra-ui/react';
 import MouseTooltip from './MouseTooltip';
-
-// ── 技能图标映射 ──
-const ABILITY_ICON = {
-  hero: '⭐',
-  spy: '🕵️',
-  medic: '💊',
-  muster: '📋',
-  tight_bond: '🔗',
-  morale_boost: '📯',
-  scorch: '🔥',
-  scorch_melee: '🔥',
-  scorch_siege: '🔥',
-  horn: '📯',
-  decoy: '🃏',
-  commander_horn: '📯',
-  weather_frost: '❄️',
-  weather_fog: '🌫️',
-  weather_rain: '🌧️',
-  clear_weather: '☀️',
-};
-const ABILITY_LABEL = {
-  hero: '英雄',
-  spy: '间谍',
-  medic: '医生',
-  muster: '召集',
-  tight_bond: '紧黏',
-  morale_boost: '振奋',
-  scorch: '烧灼',
-  horn: '号角',
-  decoy: '诱饵',
-  commander_horn: '指挥号角',
-  weather_frost: '霜冻',
-  weather_fog: '浓雾',
-  weather_rain: '暴雨',
-  clear_weather: '晴天',
-};
-const ABILITY_DESC = {
-  hero: '英雄牌不受任何特殊牌影响（天气、烧灼、诱饵等对其无效）',
-  spy: '打出到敌方战场，并从己方卡组抽2张牌',
-  medic: '从己方墓地复活一张非英雄单位牌',
-  muster: '打出后自动从卡组召唤所有同名牌到同一排',
-  tight_bond: '同名牌相邻放置时，每张战力翻倍',
-  morale_boost: '该排所有单位战力+1',
-  scorch: '摧毁全场战力最高的非英雄单位',
-  horn: '号角翻倍：使该排所有单位战力×2',
-  decoy: '将战场上的一张己方非英雄单位收回手牌',
-  commander_horn: '选择一排，使其所有单位战力翻倍',
-  weather_frost: '天气·霜冻：近战排所有单位战力变为1',
-  weather_fog: '天气·浓雾：远程排所有单位战力变为1',
-  weather_rain: '天气·暴雨：攻城排所有单位战力变为1',
-  clear_weather: '晴天：清除场上所有天气效果',
-};
-const WEATHER_ICON = { frost: '❄️', fog: '🌫️', rain: '🌧️' };
-const WEATHER_LABEL = { frost: '霜冻', fog: '浓雾', rain: '暴雨' };
-const FACTION_NAME = {
-  northern: '北方领域', nilfgaard: '尼弗迦德', scoiatael: '松鼠党', monsters: '怪物',
-};
-const FACTION_ICON = {
-  northern: '🦅', nilfgaard: '☀️', scoiatael: '🏹', monsters: '👹',
-};
-
-// ── 阵营边框色 ──
-const FACTION_COLOR = { northern: '#4a7ab5', nilfgaard: '#b54a4a', scoiatael: '#5a8a4a', monsters: '#b54a2a' };
+import {
+  ABILITY_ICON, ABILITY_LABEL, ABILITY_DESC,
+  FACTION_NAME, FACTION_ICON, FACTION_COLOR,
+  WEATHER_ICON, WEATHER_LABEL,
+} from '../constants';
 const getFactionColor = (card) => FACTION_COLOR[card.faction] || '#5a5240';
 
 // ── 战场小卡牌 ──

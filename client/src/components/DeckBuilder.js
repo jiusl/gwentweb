@@ -2,50 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, HStack, VStack, Text, Button, Badge, Input,
   TabsRoot, TabsList, TabsTrigger, TabsContent, TabsIndicator,
-  SimpleGrid, createToaster, Toaster,
+  SimpleGrid,
   DialogRoot, DialogBackdrop, DialogPositioner, DialogContent,
   DialogHeader, DialogTitle, DialogBody, DialogFooter, DialogCloseTrigger
 } from '@chakra-ui/react';
 import MouseTooltip from './MouseTooltip';
-
-const toaster = createToaster({ placement: 'top', duration: 2000 });
-
-const ROW_LABEL = { melee: '⚔️ 近战', ranged: '🏹 远程', siege: '🏰 攻城' };
-const RARITY_COLORS = { common: 'gray', rare: 'blue', legendary: 'gold', special: 'purple' };
-const RARITY_MAX = { common: 3, rare: 1, legendary: 1, special: 1 };
-const ABILITY_ICON = {
-  hero: '⭐', spy: '🕵️', medic: '💊', muster: '📋', tight_bond: '🔗',
-  morale_boost: '📯', scorch: '🔥', horn: '📯',
-  weather_frost: '❄️', weather_fog: '🌫️', weather_rain: '🌧️', clear_weather: '☀️',
-  commanders_horn: '📯', decoy: '🃏', scorch_melee: '🔥', scorch_siege: '🔥',
-};
-const ABILITY_DESC = {
-  hero: '英雄 — 不受任何特殊效果影响（天气、烧灼、号角等对其无效）',
-  spy: '间谍 — 放置在对方战场上，并从牌组抽2张牌',
-  medic: '医生 — 打出后从己方墓地复活一张非英雄单位',
-  muster: '召集 — 从手牌和牌组中召唤所有同名卡牌到同一排',
-  tight_bond: '紧黏 — 同名牌相邻放置时，每张的战力翻倍',
-  morale_boost: '振奋 — 该排所有非英雄单位战力+1',
-  scorch: '烧灼 — 摧毁全场战力最高的非英雄单位（敌我不分）',
-  scorch_melee: '烧灼(近战) — 摧毁近战排战力最高的非英雄单位',
-  scorch_siege: '烧灼(攻城) — 摧毁攻城排战力最高的非英雄单位',
-  horn: '号角 — 使所在排所有非英雄单位战力翻倍',
-  commanders_horn: '指挥号角 — 选择一排，使其所有非英雄单位战力翻倍',
-  decoy: '诱饵 — 将己方战场上一张非英雄单位收回手牌并重新部署',
-  weather_frost: '霜冻 — 双方近战排所有非英雄单位战力变为1',
-  weather_fog: '浓雾 — 双方远程排所有非英雄单位战力变为1',
-  weather_rain: '暴雨 — 双方攻城排所有非英雄单位战力变为1',
-  clear_weather: '晴天 — 清除场上所有天气效果',
-};
-const LEADER_DESC = {
-  '弗尔泰斯特:泰莫利亚之王': '号角 — 选择一个排，使其非英雄单位战力翻倍',
-  '弗尔泰斯特:北方统帅': '晴天 — 清除场上所有天气效果',
-  '弗尔泰斯特:攻城之王': '号角 — 选择一个排，使其非英雄单位战力翻倍',
-};
+import {
+  ABILITY_ICON, ABILITY_DESC, LEADER_DESC,
+  ROW_LABEL, RARITY_COLORS, RARITY_MAX,
+} from '../constants';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
-export default function DeckBuilder({ deck, setDeck, leader, setLeader, selectedFaction, setSelectedFaction, playerName }) {
+export default function DeckBuilder({ deck, setDeck, leader, setLeader, selectedFaction, setSelectedFaction, playerName, toaster }) {
   const [allCards, setAllCards] = useState([]);
   const [factions, setFactions] = useState({});
   const [tabValue, setTabValue] = useState('units');
@@ -76,15 +45,15 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
   const handleSaveDeck = async () => {
     if (!playerName) return;
     if (!deckName.trim()) {
-      toaster.create({ title: '请输入卡组名称', type: 'warning' });
+      toaster?.create({ title: '请输入卡组名�?, type: 'warning' });
       return;
     }
     if (!selectedFaction) {
-      toaster.create({ title: '请先选择阵营', type: 'warning' });
+      toaster?.create({ title: '请先选择阵营', type: 'warning' });
       return;
     }
     if (deck.filter(c => c.type === 'unit').length < 22) {
-      toaster.create({ title: '至少需要22张单位卡', type: 'warning' });
+      toaster?.create({ title: '至少需�?2张单位卡', type: 'warning' });
       return;
     }
     setSaving(true);
@@ -102,21 +71,21 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
       });
       const data = await res.json();
       if (data.success) {
-        toaster.create({ title: '卡组已保存！', type: 'success' });
+        toaster?.create({ title: '卡组已保存！', type: 'success' });
         setSavedDecks(prev => {
           const updated = prev.filter(d => d.id !== data.deckId);
           return [{ id: data.deckId, name: deckName.trim(), faction: selectedFaction, leaderId: leader?.id, cardIds: [] }, ...updated];
         });
       }
     } catch {
-      toaster.create({ title: '保存失败，请检查服务器', type: 'error' });
+      toaster?.create({ title: '保存失败，请检查服务器', type: 'error' });
     } finally { setSaving(false); }
   };
 
   const handleLoadDeck = async (deckId) => {
     const saved = savedDecks.find(d => d.id === deckId);
     if (!saved) return;
-    // 先关闭对话框，让关闭动画开始
+    // 先关闭对话框，让关闭动画开�?
     setShowLoadDialog(false);
     setDeckName(saved.name);
     // 重新从服务器加载完整卡组数据
@@ -140,11 +109,11 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             const leaderCard = allCards.find(c => c.id === full.leaderId);
             if (leaderCard) setLeader(leaderCard);
           } else { setLeader(null); }
-          toaster.create({ title: `已加载「${full.name}」`, type: 'success' });
+          toaster?.create({ title: `已加载�?{full.name}」`, type: 'success' });
         }
       }
     } catch {
-      toaster.create({ title: '加载失败', type: 'error' });
+      toaster?.create({ title: '加载失败', type: 'error' });
     }
   };
 
@@ -152,9 +121,9 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
     try {
       await fetch(`${API_BASE}/api/decks/${deckId}`, { method: 'DELETE' });
       setSavedDecks(prev => prev.filter(d => d.id !== deckId));
-      toaster.create({ title: '卡组已删除', type: 'info' });
+      toaster?.create({ title: '卡组已删�?, type: 'info' });
     } catch {
-      toaster.create({ title: '删除失败', type: 'error' });
+      toaster?.create({ title: '删除失败', type: 'error' });
     }
   };
 
@@ -171,7 +140,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
 
   const addCard = (card) => {
     if (!canAdd(card)) {
-      toaster.create({ title: '无法加入', description: '超出数量限制或阵营不符', type: 'warning' });
+      toaster?.create({ title: '无法加入', description: '超出数量限制或阵营不�?, type: 'warning' });
       return;
     }
     setDeck([...deck, { ...card }]);
@@ -204,19 +173,19 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           const heroAbilityIcon = card.heroAbility ? ABILITY_ICON[card.heroAbility] : null;
           const heroAbilityDesc = card.heroAbility ? ABILITY_DESC[card.heroAbility] : null;
           const rowLabel = card.row ? ROW_LABEL[card.row] : '';
-          const typeLabel = card.isHero ? '⭐英雄' : card.type === 'special' ? '✨特殊' : '单位';
+          const typeLabel = card.isHero ? '⭐英�? : card.type === 'special' ? '✨特�? : '单位';
           const can = canAdd(card);
           return (
             <MouseTooltip key={card.id} content={
               <>
                 <Text fontWeight="bold" mb={1}>
-                  {abilityIcon && `${abilityIcon} `}{card.name} · {typeLabel} · {card.power}⚡
+                  {abilityIcon && `${abilityIcon} `}{card.name} · {typeLabel} · {card.power}�?
                 </Text>
                 {rowLabel && <Text color="#baaa8a">📌 {rowLabel}</Text>}
                 {abilityDesc && <Text color="#d4b87a" mt={1}>{abilityDesc}</Text>}
-                {heroAbilityDesc && <Text color="#e2c88a" mt={1}>{heroAbilityDesc.replace(/^([^-]+—)/, '副技能·$1')}</Text>}
+                {heroAbilityDesc && <Text color="#e2c88a" mt={1}>{heroAbilityDesc.replace(/^([^-]+�?/, '副技能�?1')}</Text>}
                 {!abilityDesc && !card.isHero && card.type === 'unit' && !heroAbilityDesc && (
-                  <Text color="#8a7a5a" mt={1}>无特殊技能</Text>
+                  <Text color="#8a7a5a" mt={1}>无特殊技�?/Text>
                 )}
               </>
             }>
@@ -270,7 +239,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           _hover={{ bg: 'rgba(107,138,58,0.22)' }}
           disabled={saving || !playerName}
           onClick={handleSaveDeck}
-        >{saving ? '⋯' : '💾 保存'}</Button>
+        >{saving ? '�? : '💾 保存'}</Button>
         {savedDecks.length > 0 && (
           <Button size="xs" h="28px"
             fontFamily="Georgia, serif"
@@ -309,8 +278,8 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
                 <MouseTooltip key={l.id} content={
                   <>
                     <Text fontWeight="bold" mb={1}>👑 {l.name}</Text>
-                    <Text color="#d4b87a">{LEADER_DESC[l.name] || (l.ability ? `技能: ${ABILITY_DESC[l.ability] || l.ability}` : '无特殊技能')}</Text>
-                    <Text color="#8a7a5a" mt={1} fontSize="10px">领袖牌不占牌组位置，全局仅可使用一次</Text>
+                    <Text color="#d4b87a">{LEADER_DESC[l.name] || (l.ability ? `技�? ${ABILITY_DESC[l.ability] || l.ability}` : '无特殊技�?)}</Text>
+                    <Text color="#8a7a5a" mt={1} fontSize="10px">领袖牌不占牌组位置，全局仅可使用一�?/Text>
                   </>
                 }>
                   <Button size="xs"
@@ -328,7 +297,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             </HStack>
           </Box>
 
-          {/* 卡池标签页 */}
+          {/* 卡池标签�?*/}
           <TabsRoot
             value={tabValue}
             onValueChange={(e) => setTabValue(e.value)}
@@ -376,7 +345,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
         </>
       )}
 
-      {/* 加载卡组对话框 — 始终渲染，用 open 控制，避免条件卸载与 portal 生命周期冲突 */}
+      {/* 加载卡组对话�?�?始终渲染，用 open 控制，避免条件卸载与 portal 生命周期冲突 */}
       <DialogRoot open={showLoadDialog} onOpenChange={(e) => setShowLoadDialog(e.open)}>
         <DialogBackdrop />
         <DialogPositioner>
@@ -387,7 +356,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             </DialogHeader>
             <DialogBody>
               {savedDecks.length === 0 ? (
-                <Text color="#8a7a5a" fontFamily="Georgia, serif">暂无保存的卡组</Text>
+                <Text color="#8a7a5a" fontFamily="Georgia, serif">暂无保存的卡�?/Text>
               ) : (
                 <VStack gap={2}>
                   {savedDecks.map(d => (
@@ -422,14 +391,6 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           </DialogContent>
         </DialogPositioner>
       </DialogRoot>
-      <Toaster toaster={toaster}>
-        {(toast) => (
-          <Box bg="#2d261d" color="#e0d3b8" p={3} borderRadius="3px" border="1px solid rgba(200,169,110,0.25)" fontFamily="Georgia, serif">
-            <Text fontWeight="bold">{toast.title}</Text>
-            {toast.description && <Text fontSize="sm" color="#baaa8a">{toast.description}</Text>}
-          </Box>
-        )}
-      </Toaster>
     </Box>
   );
 }

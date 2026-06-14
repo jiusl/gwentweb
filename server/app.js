@@ -6,7 +6,12 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const GameManager = require('./gameLogic/gameManager');
 const { createAI } = require('./ai');
-const aiPlayer = createAI('ollama');
+const aiPlayer = createAI('ollama', {
+  model: process.env.OLLAMA_MODEL,
+  baseUrl: process.env.OLLAMA_BASE_URL,
+  temperature: process.env.OLLAMA_TEMPERATURE ? parseFloat(process.env.OLLAMA_TEMPERATURE) : undefined,
+  timeout: process.env.OLLAMA_TIMEOUT ? parseInt(process.env.OLLAMA_TIMEOUT) : undefined,
+});
 const heuristicAI = createAI('heuristic');  // 无 Ollama 时 / Ollama 失败时的回退
 const gameManager = new GameManager();
 
@@ -152,6 +157,23 @@ function _checkAIPostAction(gameId, aiId, io) {
   if (game.status === 'playing' && game.activePlayer === aiId)
     setTimeout(() => executeAITurn(gameId, aiId, io), AI_DELAY_MS);
 }
+/** 统一赛后处理：gameEnd/roundEnd 广播 + AI 触发 */
+function _handlePostAction(gameId, playerId, io) {
+  const game = gameManager.activeGames.get(gameId);
+  if (!game) return;
+  if (game.status === 'gameEnd') {
+    io.to(gameId).emit('gameEnd', { winner: game.gameWinner });
+    _finalizeGameEnd(gameId, io);
+  } else if (game.status === 'roundEnd') {
+    io.to(gameId).emit('roundEnd', {
+      roundWinner: game.roundWinner, currentRound: game.currentRound,
+      scores: { [playerId]: game.players[playerId].roundsWon, [game.getOpponentId(playerId)]: game.players[game.getOpponentId(playerId)].roundsWon }
+    });
+    setTimeout(() => _autoStartNextRound(gameId, io), 2000);
+  }
+  maybeTriggerAI(gameId, playerId, io);
+}
+
 function maybeTriggerAI(gameId, humanId, io) {
   const game = gameManager.activeGames.get(gameId);
   if (!game || game.status !== 'playing') return;
@@ -302,6 +324,7 @@ function _startMatch(io, player1Id, player2Id, deck1, leader1) {
   }
   // 传 leader2=aiFaction（string 类型，gameManager 据此自动选卡组+领袖）
   const game = gameManager.createGame(player1Id, actualP2Id, deck1, null, leader1, isAI ? aiFaction : null);
+  game.humanName = p1?.name;  // 存储玩家名，供 DB 持久化时查找用户
 
   // 通知 AI 对局开始（设置阵营上下文等）
   if (isAI) {
@@ -481,18 +504,7 @@ io.on('connection', (socket) => {
       lastOpponentAction.set(gameId, { action: 'playCard', playerId, cardIndex, row, cardName: preCard?.name });
       io.to(gameId).emit('gameStateUpdate', result.gameState);
       if (result.events?.length) io.to(gameId).emit('cardEvents', result.events);
-      const game = gameManager.activeGames.get(gameId);
-      if (game?.status === 'gameEnd') {
-        io.to(gameId).emit('gameEnd', { winner: game.gameWinner });
-        _finalizeGameEnd(gameId, io);
-      } else if (game?.status === 'roundEnd') {
-        io.to(gameId).emit('roundEnd', {
-          roundWinner: game.roundWinner, currentRound: game.currentRound,
-          scores: { [playerId]: game.players[playerId].roundsWon, [game.getOpponentId(playerId)]: game.players[game.getOpponentId(playerId)].roundsWon }
-        });
-        setTimeout(() => _autoStartNextRound(gameId, io), 2000);
-      }
-      maybeTriggerAI(gameId, playerId, io);
+      _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
   });
 
@@ -504,18 +516,7 @@ io.on('connection', (socket) => {
     if (result.success) {
       lastOpponentAction.set(gameId, { action: 'pass', playerId });
       io.to(gameId).emit('gameStateUpdate', result.gameState);
-      const game = gameManager.activeGames.get(gameId);
-      if (game?.status === 'gameEnd') {
-        io.to(gameId).emit('gameEnd', { winner: game.gameWinner });
-        _finalizeGameEnd(gameId, io);
-      } else if (game?.status === 'roundEnd') {
-        io.to(gameId).emit('roundEnd', {
-          roundWinner: game.roundWinner, currentRound: game.currentRound,
-          scores: { [playerId]: game.players[playerId].roundsWon, [game.getOpponentId(playerId)]: game.players[game.getOpponentId(playerId)].roundsWon }
-        });
-        setTimeout(() => _autoStartNextRound(gameId, io), 2000);
-      }
-      maybeTriggerAI(gameId, playerId, io);
+      _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
   });
 
@@ -527,18 +528,7 @@ io.on('connection', (socket) => {
     if (result.success) {
       io.to(gameId).emit('gameStateUpdate', result.gameState);
       if (result.events?.length) io.to(gameId).emit('cardEvents', result.events);
-      const game = gameManager.activeGames.get(gameId);
-      if (game?.status === 'gameEnd') {
-        io.to(gameId).emit('gameEnd', { winner: game.gameWinner });
-        _finalizeGameEnd(gameId, io);
-      } else if (game?.status === 'roundEnd') {
-        io.to(gameId).emit('roundEnd', {
-          roundWinner: game.roundWinner, currentRound: game.currentRound,
-          scores: { [playerId]: game.players[playerId].roundsWon, [game.getOpponentId(playerId)]: game.players[game.getOpponentId(playerId)].roundsWon }
-        });
-        setTimeout(() => _autoStartNextRound(gameId, io), 2000);
-      }
-      maybeTriggerAI(gameId, playerId, io);
+      _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
   });
 
@@ -551,15 +541,13 @@ io.on('connection', (socket) => {
     const p1Id = `ai_battle_1_${Date.now()}`;
     const p2Id = `ai_battle_2_${Date.now()}`;
 
-    // 创建两个独立的 AI 实例
+    // AI1：本地 Ollama 大模型
     const ai1 = createAI('ollama', {
-      model: model1 || 'qwen2.5:7b',
+      model: model1 || process.env.OLLAMA_MODEL || 'qwen2.5:7b',
       baseUrl: baseUrl1 || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
     });
-    const ai2 = createAI('ollama', {
-      model: model2 || 'qwen2.5:7b',
-      baseUrl: baseUrl2 || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    });
+    // AI2：启发式规则 AI
+    const ai2 = createAI('heuristic');
     aiInstanceMap.set(p1Id, ai1);
     aiInstanceMap.set(p2Id, ai2);
 
@@ -576,6 +564,7 @@ io.on('connection', (socket) => {
     const leader2 = defaultLeader(f2);
 
     const game = gameManager.createGame(p1Id, p2Id, deck1, deck2, leader1, leader2);
+    game.humanName = lobbyPlayers.get(playerId)?.name;  // 旁观者名，供 DB 持久化
     aiBattleGames.add(game.gameId);
 
     // 通知 AI 对局开始

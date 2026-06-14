@@ -15,8 +15,22 @@
  */
 
 // ═══════════════════════════════════════════
-// 阵营克制技能
+// 阵营克制映射（单一数据源）
 // ═══════════════════════════════════════════
+
+const FACTION_COUNTER = {
+  northern: 'nilfgaard',
+  nilfgaard: 'monsters',
+  scoiatael: 'northern',
+  monsters: 'northern',
+};
+
+const FACTION_COUNTER_DESC = {
+  northern: 'nilfgaard（尼弗迦德）——间谍体系可打乱北方同袍节奏，医生复活保持战力',
+  nilfgaard: 'monsters（怪物）——大量召集单位不怕间谍送分，霜冻破坏尼弗迦德近战集群',
+  scoiatael: 'northern（北方领域）——同袍体系稳定输出，号角攻城克制松鼠党远程集群',
+  monsters: 'northern（北方领域）——英雄+攻城体系不受天气影响，烧灼清理怪物群',
+};
 
 const COUNTER_FACTION_SKILLS = {
   northern: {
@@ -285,14 +299,8 @@ function getGeneralPrinciples(player, opponent, currentRound) {
 // ═══════════════════════════════════════════
 
 function getDeckSelectionSkill(opponentFaction) {
-  const counterMap = {
-    northern: 'nilfgaard（尼弗迦德）——间谍体系可打乱北方同袍节奏，医生复活保持战力',
-    nilfgaard: 'monsters（怪物）——大量召集单位不怕间谍送分，霜冻破坏尼弗迦德近战集群',
-    scoiatael: 'northern（北方领域）——同袍体系稳定输出，号角攻城克制松鼠党远程集群',
-    monsters: 'northern（北方领域）——英雄+攻城体系不受天气影响，烧灼清理怪物群',
-  };
-
-  const recommendation = counterMap[opponentFaction] || 'northern（北方领域）——通用稳定，适合各种对局';
+  const recommendation = FACTION_COUNTER_DESC[opponentFaction]
+    || 'northern（北方领域）——通用稳定，适合各种对局';
 
   return `【选牌策略】对手阵营为 ${opponentFaction}。推荐选择 ${recommendation}。\n可选阵营: northern(北方领域)、nilfgaard(尼弗迦德)、scoiatael(松鼠党)、monsters(怪物)`;
 }
@@ -356,13 +364,7 @@ function collectSkills(game, playerId, options = {}) {
  * 获取阵营克制推荐（对局前使用）
  */
 function getCounterFaction(opponentFaction) {
-  const counterMap = {
-    northern: 'nilfgaard',
-    nilfgaard: 'monsters',
-    scoiatael: 'northern',
-    monsters: 'northern',
-  };
-  return counterMap[opponentFaction] || 'northern';
+  return FACTION_COUNTER[opponentFaction] || 'northern';
 }
 
 module.exports = {
@@ -370,4 +372,5 @@ module.exports = {
   getCounterFaction,
   getDeckSelectionSkill,
   COUNTER_FACTION_SKILLS,
+  FACTION_COUNTER,
 };
