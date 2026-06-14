@@ -100,8 +100,6 @@ function App() {
     }
   }, [inviteResponse, handleStartMatch]);
 
-  // ── 连接中 ──
-  if (!isConnected) {
   // ── 确定当前界面 ──
   let screen;
   if (!isConnected) {
