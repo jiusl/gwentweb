@@ -69,7 +69,7 @@ describe('卡牌数据 (cards.js)', () => {
   test('所有阵营的AI卡组应存在', () => {
     expect(aiDefaultDeck('northern').length).toBeGreaterThan(20);
     expect(aiDefaultDeck('nilfgaard').length).toBeGreaterThan(20);
-    expect(aiDefaultDeck('scoia').length).toBeGreaterThan(15);
+    expect(aiDefaultDeck('scoiatael').length).toBeGreaterThan(15);
     expect(aiDefaultDeck('monsters').length).toBeGreaterThan(20);
   });
 });

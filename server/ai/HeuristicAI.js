@@ -29,7 +29,7 @@ const WEATHER_TO_ROW = {
 };
 
 class HeuristicAI extends AIInterface {
-  getName() { return 'HeuristicAI'; }
+  getName() { return 'AI哥1(启发式)'; }
 
   /* ═══════════════════ 主入口 ═══════════════════ */
   decideAction(game, aiPlayerId) {

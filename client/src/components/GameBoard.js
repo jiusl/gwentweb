@@ -37,12 +37,35 @@ const ABILITY_LABEL = {
   weather_rain: '暴雨',
   clear_weather: '晴天',
 };
+const ABILITY_DESC = {
+  hero: '英雄牌不受任何特殊牌影响（天气、烧灼、诱饵等对其无效）',
+  spy: '打出到敌方战场，并从己方卡组抽2张牌',
+  medic: '从己方墓地复活一张非英雄单位牌',
+  muster: '打出后自动从卡组召唤所有同名牌到同一排',
+  tight_bond: '同名牌相邻放置时，每张战力翻倍',
+  morale_boost: '该排所有单位战力+1',
+  scorch: '摧毁全场战力最高的非英雄单位',
+  horn: '号角翻倍：使该排所有单位战力×2',
+  decoy: '将战场上的一张己方非英雄单位收回手牌',
+  commander_horn: '选择一排，使其所有单位战力翻倍',
+  weather_frost: '天气·霜冻：近战排所有单位战力变为1',
+  weather_fog: '天气·浓雾：远程排所有单位战力变为1',
+  weather_rain: '天气·暴雨：攻城排所有单位战力变为1',
+  clear_weather: '晴天：清除场上所有天气效果',
+};
 const WEATHER_ICON = { frost: '❄️', fog: '🌫️', rain: '🌧️' };
 const WEATHER_LABEL = { frost: '霜冻', fog: '浓雾', rain: '暴雨' };
+const FACTION_NAME = {
+  northern: '北方领域', nilfgaard: '尼弗迦德', scoiatael: '松鼠党', monsters: '怪物',
+};
+const FACTION_ICON = {
+  northern: '🦅', nilfgaard: '☀️', scoiatael: '🏹', monsters: '👹',
+};
 
 // ── 战场小卡牌 ──
 function MiniCard({ card, weathered, horned }) {
   const icon = card.isHero ? '⭐' : ABILITY_ICON[card.ability] || '';
+  const abilityDesc = card.ability ? ABILITY_DESC[card.ability] : null;
   const heroAbilityTag = card.heroAbility ? (ABILITY_LABEL[card.heroAbility] || '') : '';
   const powerColor = card.isHero ? '#d4b87a' : weathered ? '#b5343a' : '#c8a96e';
   const displayPower = card.isHero ? card.power : (weathered ? '1' : card.power);
@@ -57,8 +80,20 @@ function MiniCard({ card, weathered, horned }) {
         borderColor={horned ? 'rgba(200,169,110,0.2)' : 'rgba(200,169,110,0.08)'}
       >
         <HStack gap={1} maxW="65%">
-          {icon && <Text fontSize="10px">{icon}</Text>}
-          {card.heroAbility && <Text fontSize="9px">{ABILITY_ICON[card.heroAbility]}</Text>}
+          {icon ? (
+            abilityDesc ? (
+              <MouseTooltip content={abilityDesc} maxW="180px">
+                <Text fontSize="10px" cursor="help">{icon}</Text>
+              </MouseTooltip>
+            ) : (
+              <Text fontSize="10px">{icon}</Text>
+            )
+          ) : null}
+          {card.heroAbility && (
+            <MouseTooltip content={ABILITY_DESC[card.heroAbility] || ABILITY_LABEL[card.heroAbility]} maxW="180px">
+              <Text fontSize="9px" cursor="help">{ABILITY_ICON[card.heroAbility]}</Text>
+            </MouseTooltip>
+          )}
           <Text fontSize="11px" fontWeight="500" color="#e0d3b8" fontFamily="Georgia, serif" truncate>{card.name}</Text>
         </HStack>
         <Text fontSize="12px" fontWeight="700" color={powerColor} fontFamily="Georgia, serif">{displayPower}</Text>
@@ -182,12 +217,6 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
       transition="background 0.4s" />
   ));
 
-  const getCardIcon = (card) => {
-    if (card.type === 'special') return '✨';
-    if (card.ability === 'hero') return '⭐';
-    return '🛡️';
-  };
-
   return (
     <Box w="100%" className="animate-in">
       <EventToast events={cardEvents} />
@@ -210,6 +239,20 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
             <Text fontSize="14px" fontWeight="600" color="#e0d3b8" fontFamily="Georgia, serif">
               {opponent.id.startsWith('ai_') ? '🤖 AI' : '对手'}
             </Text>
+            {opponent.faction && (
+              <Text fontSize="11px" color="#baaa8a" fontFamily="Georgia, serif">
+                {FACTION_ICON[opponent.faction] || ''} {FACTION_NAME[opponent.faction] || opponent.faction}
+              </Text>
+            )}
+            {opponent.leader && (
+              <MouseTooltip content={`领袖: ${opponent.leader.name} · ${ABILITY_DESC[opponent.leader.ability] || ABILITY_LABEL[opponent.leader.ability] || '技能'}`} maxW="220px">
+                <Box cursor="help" fontSize="11px" color="#d4b87a" fontFamily="Georgia, serif" bg="rgba(200,169,110,0.08)" borderRadius="2px" px={2} py={0.5}
+                  border="1px solid rgba(200,169,110,0.15)">
+                  👑 {opponent.leader.name}
+                  {opponent.leaderUsed && <Text as="span" ml={1} color="#555">(已用)</Text>}
+                </Box>
+              </MouseTooltip>
+            )}
             {opponent.passed && <Text fontSize="11px" fontWeight="600" color="#b5343a" fontFamily="Georgia, serif">PASSED</Text>}
           </Flex>
           <HStack gap={4}>
@@ -304,42 +347,106 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
             )}
           </Flex>
         )}
-        <Flex gap={3} wrap="wrap">
+        <Flex gap={4} wrap="wrap" justify="center">
           {(myself.hand || []).map((card, idx) => {
             const isSelected = selectedCardIndex === idx;
             const abilityIcon = ABILITY_ICON[card.ability];
             const abilityLabel = ABILITY_LABEL[card.ability];
+            const isSpecial = card.type === 'special';
+            const isHero = card.ability === 'hero';
+            const isSpy = card.ability === 'spy';
+
+            // 卡牌颜色主题
+            const cardTheme = isHero
+              ? { outer: '#8b7236', inner: '#c8a96e', bg: 'linear-gradient(160deg, #3a3020 0%, #2d2418 40%, #3a2e1a 100%)', powerBg: 'rgba(200,169,110,0.25)', powerColor: '#d4b87a' }
+              : isSpy
+              ? { outer: '#5a3a4a', inner: '#8b5a6a', bg: 'linear-gradient(160deg, #2d1e24 0%, #22171c 40%, #2d1e24 100%)', powerBg: 'rgba(180,100,120,0.2)', powerColor: '#c88a9a' }
+              : isSpecial
+              ? { outer: '#3a2a5a', inner: '#6a5a9a', bg: 'linear-gradient(160deg, #24202d 0%, #1e1a26 40%, #272030 100%)', powerBg: 'rgba(130,110,180,0.2)', powerColor: '#b0a0d0' }
+              : { outer: '#3a3428', inner: '#5a5240', bg: 'linear-gradient(160deg, #2d2820 0%, #221d16 40%, #2d2618 100%)', powerBg: 'rgba(200,169,110,0.12)', powerColor: '#c8a96e' };
+
+            // 中央图标：单位牌显示阵营，特殊牌显示✨，英雄显示⭐
+            const centerIcon = isSpecial ? '✨' : isHero ? '⭐' : (FACTION_ICON[card.faction] || '🛡️');
 
             return (
               <Box key={idx} as="button" onClick={() => handleCardClick(idx, card)}
                 disabled={!myTurnActive}
-                w="100px" h="140px" borderRadius="3px"
-                border={isSelected ? '2px solid #d4b87a' : card.isHero ? '1px solid rgba(200,169,110,0.3)' : '1px solid rgba(200,169,110,0.1)'}
-                bg={isSelected ? 'rgba(200,169,110,0.12)' : card.isHero ? 'rgba(200,169,110,0.06)' : 'rgba(45,38,29,0.8)'}
-                display="flex" flexDirection="column" alignItems="center" justifyContent="center" gap={1.5}
-                cursor={myTurnActive ? 'pointer' : 'default'} opacity={myTurnActive ? 1 : 0.35}
-                transform={isSelected ? 'translateY(-8px)' : 'none'}
-                transition="all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)"
-                _hover={myTurnActive ? { bg: 'rgba(200,169,110,0.1)', transform: 'translateY(-6px)', boxShadow: '0 8px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,169,110,0.2)' } : {}}
+                w="130px" h="180px" borderRadius="6px"
                 position="relative"
+                cursor={myTurnActive ? 'pointer' : 'default'} opacity={myTurnActive ? 1 : 0.35}
+                transform={isSelected ? 'translateY(-10px) rotate(-1deg)' : 'none'}
+                transition="all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)"
+                _hover={myTurnActive ? { transform: 'translateY(-8px) rotate(-0.5deg)', boxShadow: `0 12px 40px rgba(0,0,0,0.55), 0 0 0 2px ${cardTheme.inner}, 0 0 20px ${cardTheme.inner}40` } : {}}
+                display="flex" flexDirection="column"
+                bg={cardTheme.bg}
+                border="2px solid"
+                borderColor={isSelected ? '#d4b87a' : cardTheme.outer}
+                boxShadow={isSelected
+                  ? `0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px ${cardTheme.inner}, 0 0 24px ${cardTheme.inner}60, inset 0 0 0 2px ${cardTheme.inner}30`
+                  : `0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px ${cardTheme.inner}50, inset 0 0 0 2px ${cardTheme.inner}20`
+                }
               >
-                {abilityIcon && (
-                  <Box position="absolute" top="4px" right="4px" fontSize="14px" title={abilityLabel}>
-                    {abilityIcon}
+                {/* ── 内边框装饰 ── */}
+                <Box position="absolute" inset="4px" borderRadius="3px" border={`1px solid ${cardTheme.inner}25`} pointerEvents="none" />
+
+                {/* ── 顶部：战力 + 排图标 ── */}
+                <Flex justify="space-between" align="flex-start" px="10px" pt="8px" position="relative" zIndex={1}>
+                  <Box bg={cardTheme.powerBg} borderRadius="3px" px="8px" py="2px" minW="28px" textAlign="center"
+                    border={`1px solid ${cardTheme.inner}30`}>
+                    <Text fontSize="15px" fontWeight="700" color={cardTheme.powerColor} fontFamily="Georgia, serif" lineHeight="1">
+                      {card.power}
+                    </Text>
                   </Box>
-                )}
-                {card.row && (
-                  <Box position="absolute" top="4px" left="4px" fontSize="10px" color="#baaa8a">
-                    {{melee:'⚔️',ranged:'🏹',siege:'🏰'}[card.row]}
-                  </Box>
-                )}
-                <Text fontSize="24px">{getCardIcon(card)}</Text>
-                <Text fontSize="11px" fontWeight="600" color="#e0d3b8" fontFamily="Georgia, serif" textAlign="center" lineHeight="1.2" noOfLines={2}>
+                  <Flex direction="column" align="flex-end" gap="2px">
+                    {card.row && (
+                      <Text fontSize="13px" lineHeight="1">
+                        {{melee:'⚔️',ranged:'🏹',siege:'🏰'}[card.row]}
+                      </Text>
+                    )}
+                    {abilityIcon && (
+                      <MouseTooltip content={ABILITY_DESC[card.ability] || `${abilityLabel}`} maxW="180px">
+                        <Text fontSize="13px" cursor="help" lineHeight="1">{abilityIcon}</Text>
+                      </MouseTooltip>
+                    )}
+                  </Flex>
+                </Flex>
+
+                {/* ── 上部装饰线 ── */}
+                <Flex align="center" px="12px" mt="6px" gap="6px">
+                  <Box flex={1} h="1px" bg={`${cardTheme.inner}30`} />
+                  <Box w="4px" h="4px" borderRadius="50%" bg={`${cardTheme.inner}40`} />
+                  <Box flex={1} h="1px" bg={`${cardTheme.inner}30`} />
+                </Flex>
+
+                {/* ── 中央图标 ── */}
+                <Flex flex={1} align="center" justify="center" position="relative" zIndex={1}>
+                  <Text fontSize="40px" opacity={0.75} lineHeight="1"
+                    filter={isHero ? 'drop-shadow(0 0 8px rgba(200,169,110,0.5))' : 'none'}>
+                    {centerIcon}
+                  </Text>
+                </Flex>
+
+                {/* ── 下部装饰线 ── */}
+                <Flex align="center" px="12px" mb="4px" gap="6px">
+                  <Box flex={1} h="1px" bg={`${cardTheme.inner}30`} />
+                  <Box w="4px" h="4px" borderRadius="50%" bg={`${cardTheme.inner}40`} />
+                  <Box flex={1} h="1px" bg={`${cardTheme.inner}30`} />
+                </Flex>
+
+                {/* ── 卡名 ── */}
+                <Text fontSize="11px" fontWeight="600" color="#e0d3b8" fontFamily="Georgia, serif"
+                  textAlign="center" lineHeight="1.25" px="8px" mb="6px" noOfLines={2} position="relative" zIndex={1}>
                   {card.name}
                 </Text>
-                <Box bg={card.isHero ? 'rgba(200,169,110,0.2)' : 'rgba(200,169,110,0.1)'}
-                  color={card.isHero ? '#d4b87a' : '#c8a96e'} borderRadius="2px" px={2.5} py={0.5}>
-                  <Text fontSize="13px" fontWeight="700" fontFamily="Georgia, serif">{card.power}</Text>
+
+                {/* ── 底部阵营标签 ── */}
+                <Box flexShrink={0} pb="6px" px="10px" position="relative" zIndex={1}>
+                  <Box bg={`${cardTheme.inner}12`} borderRadius="2px" py="2px" px="6px"
+                    border={`1px solid ${cardTheme.inner}18`}>
+                    <Text fontSize="9px" fontWeight="500" color={cardTheme.inner} fontFamily="Georgia, serif" textAlign="center" letterSpacing="0.03em" textTransform="uppercase">
+                      {isHero ? 'HERO' : isSpecial ? 'SPECIAL' : (FACTION_NAME[card.faction] || card.faction || 'UNIT')}
+                    </Text>
+                  </Box>
                 </Box>
               </Box>
             );

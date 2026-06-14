@@ -22,13 +22,21 @@ class GameManager {
     // 玩家1卡组
     game.players[player1Id].deck = this.copyDeck(deck1 || starterDeck);
     game.players[player1Id].leader = leader1 || null;
-    // 玩家2卡组（AI 用 aiDefaultDeck）
+    // 玩家2卡组（AI 用 faction 参数自动选择阵营）
     if (deck2) {
       game.players[player2Id].deck = this.copyDeck(deck2);
       game.players[player2Id].leader = leader2 || null;
+    } else if (leader2) {
+      // leader2 为 string 类型时 = 阵营 key，AI 据此自动选卡组+领袖
+      const factionKey = leader2;
+      game.players[player2Id].deck = this.copyDeck(aiDefaultDeck(factionKey));
+      const { defaultLeader } = require('./cards');
+      game.players[player2Id].leader = defaultLeader(factionKey);
     } else {
-      // AI 默认北方领域卡组
+      // 完全未指定时回退到北方领域
       game.players[player2Id].deck = this.copyDeck(aiDefaultDeck('northern'));
+      const { defaultLeader } = require('./cards');
+      game.players[player2Id].leader = defaultLeader('northern');
     }
 
     this.shuffleAndDraw(game.players[player1Id]);
@@ -517,6 +525,7 @@ class GameManager {
       },
       opponent: {
         id: op.id,
+        faction: op.leader?.faction || null,
         melee: op.melee,
         ranged: op.ranged,
         siege: op.siege,

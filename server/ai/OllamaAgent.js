@@ -62,7 +62,7 @@ class OllamaAgent extends AIInterface {
   }
 
   getName() {
-    return `OllamaAgent(${this.options.model})`;
+    return `AI哥2(${this.options.model})`;
   }
 
   // ──────── 生命周期钩子 ────────

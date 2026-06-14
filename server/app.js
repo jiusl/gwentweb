@@ -20,11 +20,13 @@ const aiBattleGames = new Set();  // gameId 集合，标记为纯 AI 对战（�
 const socketToPlayer = new Map();   // socketId → playerId
 const lobbyPlayers = new Map();     // playerId → { id, name, status, isAI, faction }
 const pendingInvites = new Map();   // inviteId → { from, to, timestamp }
-const AI_PLAYER_ID = 'ai_player';
+const AI_PLAYER_ID = 'ai_player';       // AI哥1 → HeuristicAI
+const AI_PLAYER_2_ID = 'ai_player2';   // AI哥2 → OllamaAgent
 const AI_DELAY_MS = 1500;
 
 // AI 始终在大厅
-lobbyPlayers.set(AI_PLAYER_ID, { id: AI_PLAYER_ID, name: '🤖 AI 对手', status: 'idle', isAI: true, faction: 'northern' });
+lobbyPlayers.set(AI_PLAYER_ID,   { id: AI_PLAYER_ID,   name: '🤖 AI哥1(启发式)', status: 'idle', isAI: true, faction: 'northern' });
+lobbyPlayers.set(AI_PLAYER_2_ID, { id: AI_PLAYER_2_ID, name: '🧠 AI哥2(大模型)', status: 'idle', isAI: true, faction: 'northern' });
 
 // ═══════ AI 游戏逻辑 ═══════
 
@@ -188,7 +190,7 @@ function _sendInvite(io, fromId, targetId) {
     }
   }
   // 目标是 AI：自动接受
-  if (targetId === AI_PLAYER_ID) {
+  if (targetId === AI_PLAYER_ID || targetId === AI_PLAYER_2_ID) {
     setTimeout(() => _acceptInvite(io, inviteId, targetId, fromId), 800);
   }
 }
@@ -225,9 +227,24 @@ function _startMatch(io, player1Id, player2Id, deck1, leader1) {
   if (p2) p2.status = 'playing';
   io.emit('playerListUpdate', Array.from(lobbyPlayers.values()));
 
-  const isAI = player2Id === AI_PLAYER_ID;
+  const isAI = player2Id === AI_PLAYER_ID || player2Id === AI_PLAYER_2_ID;
   const actualP2Id = isAI ? `ai_${Date.now()}` : player2Id;
-  const game = gameManager.createGame(player1Id, actualP2Id, deck1, null, leader1, null);
+  // 根据对手选 AI 实例：AI哥1 → heuristic，AI哥2 → ollama
+  if (player2Id === AI_PLAYER_ID) {
+    aiInstanceMap.set(actualP2Id, heuristicAI);
+  } else if (player2Id === AI_PLAYER_2_ID) {
+    aiInstanceMap.set(actualP2Id, aiPlayer);
+  }
+  // 检测玩家阵营 → 为 AI 选择克制阵营
+  let aiFaction = 'northern';
+  if (isAI) {
+    const playerFaction = leader1?.faction || 'northern';
+    const { getCounterFaction } = require('./ai/skills');
+    aiFaction = getCounterFaction(playerFaction);
+    console.log(`🧠 AI 根据玩家阵营 ${playerFaction} → 选择克制阵营 ${aiFaction}`);
+  }
+  // 传 leader2=aiFaction（string 类型，gameManager 据此自动选卡组+领袖）
+  const game = gameManager.createGame(player1Id, actualP2Id, deck1, null, leader1, isAI ? aiFaction : null);
 
   // 通知玩家1（发起者）
   for (const [sid, pid] of socketToPlayer.entries()) {
@@ -451,7 +468,7 @@ io.on('connection', (socket) => {
     aiInstanceMap.set(p2Id, ai2);
 
     // 随机选阵营创建游戏
-    const factions = ['northern', 'nilfgaard', 'scoia', 'monsters'];
+    const factions = ['northern', 'nilfgaard', 'scoiatael', 'monsters'];
     const f1 = factions[Math.floor(Math.random() * factions.length)];
     let f2 = factions[Math.floor(Math.random() * factions.length)];
     if (f2 === f1) f2 = factions[(factions.indexOf(f1) + 1) % factions.length];

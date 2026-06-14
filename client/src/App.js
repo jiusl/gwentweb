@@ -92,7 +92,7 @@ function App() {
   // AI 邀请自动开始对战（无需手动点"开始对战"按钮）
   const prevInviteResponseRef = React.useRef(null);
   useEffect(() => {
-    if (inviteResponse && inviteResponse.accepted && inviteResponse.from === 'ai_player') {
+    if (inviteResponse && inviteResponse.accepted && inviteResponse.from?.startsWith('ai_player')) {
       // 防止重复触发
       if (prevInviteResponseRef.current?.from === inviteResponse.from &&
           prevInviteResponseRef.current?.accepted === inviteResponse.accepted) return;

@@ -106,6 +106,10 @@ const nLeaders = [
 
 // ═══════════ 尼弗迦德 ═══════════
 const G = 'nilfgaard';
+const gLeaders = [
+  mkLdr('恩希尔:白色火焰', G, ABILITIES.HORN),
+  mkLdr('恩希尔:冷酷征服者', G, ABILITIES.CLEAR_WEATHER),
+];
 const g = {
   '帝国旅卫':         mk('帝国旅卫', 3, G, 'melee', ABILITIES.TIGHT_BOND),
   '那乌西卡骑兵':     mk('那乌西卡骑兵', 2, G, 'melee', ABILITIES.TIGHT_BOND),
@@ -140,6 +144,10 @@ const g = {
 
 // ═══════════ 松鼠党 ═══════════
 const S = 'scoiatael';
+const sLeaders = [
+  mkLdr('法兰茜丝卡:山谷雏菊', S, ABILITIES.HORN),
+  mkLdr('法兰茜丝卡:纯血精灵', S, ABILITIES.CLEAR_WEATHER),
+];
 const s = {
   '玛哈坎守卫':       mk('玛哈坎守卫', 5, S, 'melee'),
   '矮人散兵':         mk('矮人散兵', 3, S, 'melee', ABILITIES.MUSTER),
@@ -168,6 +176,10 @@ const s = {
 
 // ═══════════ 怪物 ═══════════
 const M = 'monsters';
+const mLeaders = [
+  mkLdr('艾瑞汀:狂猎之王', M, ABILITIES.HORN),
+  mkLdr('艾瑞汀:毁灭者', M, ABILITIES.CLEAR_WEATHER),
+];
 const m = {
   '食尸鬼':           mk('食尸鬼', 1, M, 'melee', ABILITIES.MUSTER),
   '水鬼':             mk('水鬼', 2, M, 'melee', ABILITIES.MUSTER),
@@ -239,6 +251,9 @@ function add(coll) { Object.values(coll).forEach(c => allCards[c.id] = c); }
 const allCards = {};
 add(n); add(g); add(s); add(m); add(neu); add(sp);
 nLeaders.forEach(c => allCards[c.id] = c);
+gLeaders.forEach(c => allCards[c.id] = c);
+sLeaders.forEach(c => allCards[c.id] = c);
+mLeaders.forEach(c => allCards[c.id] = c);
 
 // ═══════════ 预设卡组: 北方领域 ═══════════
 const starterDeck = [
@@ -256,14 +271,23 @@ const starterDeck = [
   sp['霜冻'], sp['晴天'], sp['指挥号角'], sp['指挥号角'],
   sp['烧灼'], sp['诱饵'],
 ];
-const defaultLeader = nLeaders[0];
+/** 根据阵营 key 获取默认领袖 */
+function defaultLeader(factionKey) {
+  const leaders = {
+    northern: nLeaders,
+    nilfgaard: gLeaders,
+    scoiatael: sLeaders,
+    monsters: mLeaders,
+  };
+  return (leaders[factionKey] || nLeaders)[0];
+}
 
 // 阵营信息（供前端卡组配置使用）
 const factions = {
   northern: { name: '北方领域', leaders: nLeaders, units: n },
-  nilfgaard: { name: '尼弗迦德', leaders: [], units: g },
-  scoiatael: { name: '松鼠党', leaders: [], units: s },
-  monsters: { name: '怪物', leaders: [], units: m },
+  nilfgaard: { name: '尼弗迦德', leaders: gLeaders, units: g },
+  scoiatael: { name: '松鼠党', leaders: sLeaders, units: s },
+  monsters: { name: '怪物', leaders: mLeaders, units: m },
 };
 
 // AI 预置卡组（简化版，各阵营通用）
@@ -299,7 +323,7 @@ const aiDecks = {
     neu['杰洛特'],
     sp['霜冻'], sp['晴天'], sp['指挥号角'], sp['指挥号角'], sp['烧灼'], sp['诱饵'],
   ],
-  scoia: [
+  scoiatael: [
     s['多尔布雷坦纳弓箭手'], s['多尔布雷坦纳弓箭手'], s['多尔布雷坦纳弓箭手'],
     s['矮人散兵'], s['矮人散兵'], s['矮人散兵'],
     s['维里赫德旅新兵'], s['维里赫德旅新兵'],
@@ -337,5 +361,5 @@ function aiDefaultDeck(factionKey) {
   return aiDecks[factionKey] || aiDecks['northern'];
 }
 
-module.exports = { Card, ABILITIES, RARITY, allCards, sp, neu, n, nLeaders, g, s, m,
+module.exports = { Card, ABILITIES, RARITY, allCards, sp, neu, n, nLeaders, g, gLeaders, s, sLeaders, m, mLeaders,
   factions, starterDeck, defaultLeader, aiDefaultDeck };
