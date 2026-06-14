@@ -148,6 +148,27 @@ function maybeTriggerAI(gameId, humanId, io) {
   if (aiId?.startsWith('ai_') && game.activePlayer === aiId)
     setTimeout(() => executeAITurn(gameId, aiId, io), AI_DELAY_MS);
 }
+function _cleanupPlayerGames(playerId, socket, io) {
+  const gamesToEnd = [];
+  for (const [gameId, game] of gameManager.activeGames.entries()) {
+    const playerIds = Object.keys(game.players || {});
+    // 玩家是参与者，或玩家在 AI 对战房间中旁观
+    if (playerIds.includes(playerId) || (socket && socket.rooms.has(gameId) && aiBattleGames.has(gameId))) {
+      gamesToEnd.push(gameId);
+    }
+  }
+  for (const gameId of gamesToEnd) {
+    const game = gameManager.activeGames.get(gameId);
+    if (game) {
+      for (const pid of Object.keys(game.players || {})) {
+        aiInstanceMap.delete(pid);
+      }
+      io.to(gameId).emit('gameEnd', { winner: null, reason: 'player_left' });
+      gameManager.activeGames.delete(gameId);
+      aiBattleGames.delete(gameId);
+    }
+  }
+}
 function _autoStartNextRound(gameId, io) {
   const game = gameManager.activeGames.get(gameId);
   if (!game || game.status !== 'roundEnd') return;
@@ -528,7 +549,11 @@ io.on('connection', (socket) => {
     if (!playerId) return;
     const p = lobbyPlayers.get(playerId);
     if (p) p.status = 'idle';
-    // 离开所有游戏房间（包括 AI 对战旁观）
+
+    // 清理该玩家相关的所有游戏（含 AI 对战旁观）
+    _cleanupPlayerGames(playerId, socket, io);
+
+    // 离开所有游戏房间
     for (const room of socket.rooms) {
       if (room !== socket.id) socket.leave(room);
     }
@@ -541,6 +566,8 @@ io.on('connection', (socket) => {
     const playerId = socketToPlayer.get(socket.id);
     socketToPlayer.delete(socket.id);
     if (playerId) {
+      // 清理该玩家相关的所有游戏（含 AI 对战）
+      _cleanupPlayerGames(playerId, socket, io);
       lobbyPlayers.delete(playerId);
       // 清理该玩家的邀请
       for (const [iid, inv] of pendingInvites.entries()) {
