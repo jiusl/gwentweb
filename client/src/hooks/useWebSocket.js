@@ -54,10 +54,14 @@ export const useWebSocket = () => {
     socketRef.current.on('gameStarted', (data) => {
       console.log('游戏开始', data);
       setGameStarted(true);
+      setGameEnded(false);
+      setWinner(null);
+      setRoundResult(null);
       setGameState(data.gameState);
       setAiBattleInfo(data.aiBattle || null);
       setInviteResponse(null);
       setIncomingInvite(null);
+      setWaitingForResponse(false);
       incomingInviteRef.current = null;
     });
 
@@ -68,6 +72,9 @@ export const useWebSocket = () => {
     socketRef.current.on('gameEnd', (data) => {
       setGameEnded(true);
       setWinner(data.winner);
+      setWaitingForResponse(false);
+      setInviteResponse(null);
+      setIncomingInvite(null);
     });
 
     socketRef.current.on('roundEnd', (data) => {
@@ -135,6 +142,9 @@ export const useWebSocket = () => {
       setWinner(null);
       setRoundResult(null);
       setAiBattleInfo(null);
+      setWaitingForResponse(false);
+      setInviteResponse(null);
+      setIncomingInvite(null);
     }
   }, []);
 
