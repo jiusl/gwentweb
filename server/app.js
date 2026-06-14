@@ -281,24 +281,32 @@ app.use('/api', require('./routes'));
 const clientBuildPath = path.join(__dirname, '..', 'client', 'build');
 const fs = require('fs');
 if (fs.existsSync(clientBuildPath)) {
-  // 静态资源（含 hash）缓存 1 年
-  app.use('/static', express.static(path.join(clientBuildPath, 'static'), {
-    maxAge: '1y', immutable: true
-  }));
-  // index.html 不缓存，确保浏览器总是获取最新版本
+  // 静态资源托管（带 hash 的文件缓存 1 年，index.html 不缓存）
   app.use(express.static(clientBuildPath, {
+    maxAge: '1y',
+    immutable: true,
     setHeaders: (res, filePath) => {
+      // index.html 禁止缓存，确保浏览器总获取最新版本
       if (filePath.endsWith('index.html')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.removeHeader('Expires');
+        res.removeHeader('Pragma');
       }
     }
   }));
-  app.get('/{*path}', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
-      res.sendFile(path.join(clientBuildPath, 'index.html'));
-    }
+  // SPA fallback：非 API/WebSocket 路径返回 index.html
+  app.use((req, res, next) => {
+    // 只处理 GET/HEAD 请求，跳过 API 和 Socket.IO
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+    // 如果静态中间件已经处理（文件存在），不会走到这里
+    // 走到这里说明文件不存在，返回 index.html 走前端路由
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
   console.log('📦 已启用前端静态资源托管:', clientBuildPath);
+} else {
+  console.warn('⚠️ 前端构建产物不存在:', clientBuildPath);
+  console.warn('   请在部署前运行: npm run build');
 }
 
 io.on('connection', (socket) => {

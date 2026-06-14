@@ -3,7 +3,12 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 COPY client/package.json client/package-lock.json* client/
 RUN cd client && npm ci --omit=optional
-COPY client/ client/
+
+# 只复制源码（node_modules 和 build 由 .dockerignore 排除）
+COPY client/src/ client/src/
+COPY client/public/ client/public/
+COPY client/patches/ client/patches/
+
 RUN cd client && npm run build
 
 # ─── 运行阶段：仅后端 + 静态资源 ───
@@ -25,7 +30,7 @@ COPY .env.production.example /app/.env
 COPY README.md /app/README.md
 
 # 复制训练数据（AI 对战历史，可选）
-RUN bash -c 'cp training_data.json /app/ 2>/dev/null || true'
+RUN sh -c 'cp training_data.json /app/ 2>/dev/null || true'
 
 ENV NODE_ENV=production
 ENV PORT=5000
