@@ -45,7 +45,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
   const handleSaveDeck = async () => {
     if (!playerName) return;
     if (!deckName.trim()) {
-      toaster?.create({ title: '请输入卡组名�?, type: 'warning' });
+      toaster?.create({ title: '请输入卡组名称', type: 'warning' });
       return;
     }
     if (!selectedFaction) {
@@ -53,7 +53,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
       return;
     }
     if (deck.filter(c => c.type === 'unit').length < 22) {
-      toaster?.create({ title: '至少需�?2张单位卡', type: 'warning' });
+      toaster?.create({ title: '至少需要22张单位卡', type: 'warning' });
       return;
     }
     setSaving(true);
@@ -85,7 +85,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
   const handleLoadDeck = async (deckId) => {
     const saved = savedDecks.find(d => d.id === deckId);
     if (!saved) return;
-    // 先关闭对话框，让关闭动画开�?
+    // 先关闭对话框，让关闭动画开始
     setShowLoadDialog(false);
     setDeckName(saved.name);
     // 重新从服务器加载完整卡组数据
@@ -109,7 +109,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             const leaderCard = allCards.find(c => c.id === full.leaderId);
             if (leaderCard) setLeader(leaderCard);
           } else { setLeader(null); }
-          toaster?.create({ title: `已加载�?{full.name}」`, type: 'success' });
+          toaster?.create({ title: `已加载「${full.name}」`, type: 'success' });
         }
       }
     } catch {
@@ -121,7 +121,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
     try {
       await fetch(`${API_BASE}/api/decks/${deckId}`, { method: 'DELETE' });
       setSavedDecks(prev => prev.filter(d => d.id !== deckId));
-      toaster?.create({ title: '卡组已删�?, type: 'info' });
+      toaster?.create({ title: '卡组已删除', type: 'info' });
     } catch {
       toaster?.create({ title: '删除失败', type: 'error' });
     }
@@ -140,7 +140,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
 
   const addCard = (card) => {
     if (!canAdd(card)) {
-      toaster?.create({ title: '无法加入', description: '超出数量限制或阵营不�?, type: 'warning' });
+      toaster?.create({ title: '无法加入', description: '超出数量限制或阵营不匹配', type: 'warning' });
       return;
     }
     setDeck([...deck, { ...card }]);
@@ -173,19 +173,19 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           const heroAbilityIcon = card.heroAbility ? ABILITY_ICON[card.heroAbility] : null;
           const heroAbilityDesc = card.heroAbility ? ABILITY_DESC[card.heroAbility] : null;
           const rowLabel = card.row ? ROW_LABEL[card.row] : '';
-          const typeLabel = card.isHero ? '⭐英�? : card.type === 'special' ? '✨特�? : '单位';
+          const typeLabel = card.isHero ? '⭐英雄' : card.type === 'special' ? '✨特殊' : '单位';
           const can = canAdd(card);
           return (
             <MouseTooltip key={card.id} content={
               <>
                 <Text fontWeight="bold" mb={1}>
-                  {abilityIcon && `${abilityIcon} `}{card.name} · {typeLabel} · {card.power}�?
+                  {abilityIcon && `${abilityIcon} `}{card.name} · {typeLabel} · {card.power}⚡
                 </Text>
                 {rowLabel && <Text color="#baaa8a">📌 {rowLabel}</Text>}
                 {abilityDesc && <Text color="#d4b87a" mt={1}>{abilityDesc}</Text>}
-                {heroAbilityDesc && <Text color="#e2c88a" mt={1}>{heroAbilityDesc.replace(/^([^-]+�?/, '副技能�?1')}</Text>}
+                {heroAbilityDesc && <Text color="#e2c88a" mt={1}>{heroAbilityDesc.replace(/^([^-]+)/, '副技能·$1')}</Text>}
                 {!abilityDesc && !card.isHero && card.type === 'unit' && !heroAbilityDesc && (
-                  <Text color="#8a7a5a" mt={1}>无特殊技�?/Text>
+                    <Text color="#8a7a5a" mt={1}>无特殊技能</Text>
                 )}
               </>
             }>
@@ -239,7 +239,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           _hover={{ bg: 'rgba(107,138,58,0.22)' }}
           disabled={saving || !playerName}
           onClick={handleSaveDeck}
-        >{saving ? '�? : '💾 保存'}</Button>
+        >{saving ? '...' : '💾 保存'}</Button>
         {savedDecks.length > 0 && (
           <Button size="xs" h="28px"
             fontFamily="Georgia, serif"
@@ -278,8 +278,8 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
                 <MouseTooltip key={l.id} content={
                   <>
                     <Text fontWeight="bold" mb={1}>👑 {l.name}</Text>
-                    <Text color="#d4b87a">{LEADER_DESC[l.name] || (l.ability ? `技�? ${ABILITY_DESC[l.ability] || l.ability}` : '无特殊技�?)}</Text>
-                    <Text color="#8a7a5a" mt={1} fontSize="10px">领袖牌不占牌组位置，全局仅可使用一�?/Text>
+                    <Text color="#d4b87a">{LEADER_DESC[l.name] || (l.ability ? `技能: ${ABILITY_DESC[l.ability] || l.ability}` : '无特殊技能')}</Text>
+                    <Text color="#8a7a5a" mt={1} fontSize="10px">领袖牌不占牌组位置，全局仅可使用一次</Text>
                   </>
                 }>
                   <Button size="xs"
@@ -297,7 +297,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             </HStack>
           </Box>
 
-          {/* 卡池标签�?*/}
+          {/* 卡池标签页 */}
           <TabsRoot
             value={tabValue}
             onValueChange={(e) => setTabValue(e.value)}
@@ -345,7 +345,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
         </>
       )}
 
-      {/* 加载卡组对话�?�?始终渲染，用 open 控制，避免条件卸载与 portal 生命周期冲突 */}
+      {/* 加载卡组对话框 - 始终渲染，用 open 控制，避免条件卸载与 portal 生命周期冲突 */}
       <DialogRoot open={showLoadDialog} onOpenChange={(e) => setShowLoadDialog(e.open)}>
         <DialogBackdrop />
         <DialogPositioner>
@@ -356,7 +356,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
             </DialogHeader>
             <DialogBody>
               {savedDecks.length === 0 ? (
-                <Text color="#8a7a5a" fontFamily="Georgia, serif">暂无保存的卡�?/Text>
+                <Text color="#8a7a5a" fontFamily="Georgia, serif">暂无保存的卡组</Text>
               ) : (
                 <VStack gap={2}>
                   {savedDecks.map(d => (
