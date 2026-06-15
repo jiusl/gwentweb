@@ -46,11 +46,16 @@ function getDefaultOptions() {
 class OllamaAgent extends AIInterface {
   constructor(options = {}) {
     super();
-    this.options = { ...getDefaultOptions(), ...options };
+    // 过滤 undefined 值，防止覆盖默认配置（如 timeout: undefined → setTimeout(cb, 0) 导致立即中止）
+    const filteredOptions = {};
+    for (const [key, val] of Object.entries(options)) {
+      if (val !== undefined) filteredOptions[key] = val;
+    }
+    this.options = { ...getDefaultOptions(), ...filteredOptions };
     this._history = [];
-    this._maxRetries = options.maxRetries ?? 2;
-    this._useSkills = options.useSkills !== false;
-    this._useTools = options.useTools !== false;
+    this._maxRetries = filteredOptions.maxRetries ?? 2;
+    this._useSkills = filteredOptions.useSkills !== false;
+    this._useTools = filteredOptions.useTools !== false;
   }
 
   getName() {
@@ -271,8 +276,11 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
   async _callOllama(prompt) {
     const { baseUrl, model, temperature, timeout } = this.options;
 
+    // 安全兜底：确保 timeout 是有效正整数，避免 undefined/0 导致立即中止
+    const safeTimeout = (typeof timeout === 'number' && timeout > 0) ? timeout : 30000;
+
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    const timer = setTimeout(() => controller.abort(), safeTimeout);
 
     try {
       const res = await fetch(`${baseUrl}/api/generate`, {
