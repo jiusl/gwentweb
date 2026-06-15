@@ -15,6 +15,33 @@ const aiPlayer = createAI('ollama', {
 const heuristicAI = createAI('heuristic');  // 无 Ollama 时 / Ollama 失败时的回退
 const gameManager = new GameManager();
 
+// ── 启动时检测 Ollama 连通性 ──
+(async () => {
+  const ollamaUrl = aiPlayer.options.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaModel = aiPlayer.options.model || process.env.OLLAMA_MODEL || '未知';
+  console.log(`[启动检测] 检查 Ollama 连通性: ${ollamaUrl}/api/tags ...`);
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${ollamaUrl}/api/tags`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      const models = data.models?.map(m => m.name) || [];
+      const hasModel = models.some(m => m === ollamaModel || m.startsWith(ollamaModel + ':'));
+      console.log(`[启动检测] ✅ Ollama 可达，已安装模型: ${models.join(', ') || '(无)'}`);
+      if (!hasModel) {
+        console.log(`[启动检测] ⚠️ 模型 "${ollamaModel}" 未找到！AI 大模型决策将回退到启发式AI`);
+      }
+    } else {
+      console.log(`[启动检测] ⚠️ Ollama 返回 HTTP ${res.status}，AI 大模型决策将回退到启发式AI`);
+    }
+  } catch (err) {
+    console.log(`[启动检测] ❌ Ollama 不可达 (${err.message})，AI 大模型决策将回退到启发式AI`);
+    console.log(`[启动检测] 请确认: 1) ollama serve 已启动  2) ${ollamaUrl} 可访问`);
+  }
+})();
+
 // ── AI 实例映射：多 AI 对战时按玩家 ID 使用不同模型 ──
 const aiInstanceMap = new Map();  // playerId → AI instance
 

@@ -279,11 +279,18 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
     // 安全兜底：确保 timeout 是有效正整数，避免 undefined/0 导致立即中止
     const safeTimeout = (typeof timeout === 'number' && timeout > 0) ? timeout : 30000;
 
+    const fullUrl = `${baseUrl}/api/generate`;
+    const t0 = Date.now();
+    console.log(`  📡 [${this.getName()}] → Ollama ${fullUrl} (timeout=${safeTimeout}ms, model=${model})`);
+
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), safeTimeout);
+    const timer = setTimeout(() => {
+      console.log(`  ⏰ [${this.getName()}] 请求超时 (${safeTimeout}ms)，中止 fetch`);
+      controller.abort();
+    }, safeTimeout);
 
     try {
-      const res = await fetch(`${baseUrl}/api/generate`, {
+      const res = await fetch(fullUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -297,11 +304,40 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
       });
 
       if (!res.ok) {
-        throw new Error(`Ollama HTTP ${res.status}: ${await res.text()}`);
+        const errBody = await res.text().catch(() => '(无法读取响应体)');
+        console.log(`  ❌ [${this.getName()}] Ollama HTTP ${res.status}: ${errBody.slice(0, 300)}`);
+        throw new Error(`Ollama HTTP ${res.status}: ${errBody.slice(0, 200)}`);
       }
 
       const data = await res.json();
-      return data.response;
+      const elapsed = Date.now() - t0;
+
+      // qwen3 系列模型把实际输出放在 thinking 字段而非 response 字段
+      // 优先取 response，若为空/纯空白则回退到 thinking
+      const respRaw = (data.response || '').trim();
+      const thinkRaw = (data.thinking || '').trim();
+      let response;
+      if (respRaw.length > 0) {
+        response = respRaw;
+      } else if (thinkRaw.length > 0) {
+        response = thinkRaw;
+        console.log(`  💭 [${this.getName()}] 使用 thinking 字段 (response 为空)`);
+      } else {
+        response = '';
+      }
+      console.log(`  ✅ [${this.getName()}] Ollama 响应 (${elapsed}ms, ${response.length}字符): ${response.slice(0, 120)}`);
+      return response;
+    } catch (err) {
+      const elapsed = Date.now() - t0;
+      if (err.name === 'AbortError') {
+        console.log(`  ❌ [${this.getName()}] 请求被中止 (${elapsed}ms, timeout=${safeTimeout}ms)`);
+        throw new Error(`Ollama 请求超时 (${safeTimeout}ms)`);
+      }
+      // 其他网络错误（ECONNREFUSED, ENOTFOUND 等）
+      if (err.cause) {
+        console.log(`  ❌ [${this.getName()}] 网络错误 (${elapsed}ms): ${err.cause.code || err.cause.message || err.cause}`);
+      }
+      throw err;
     } finally {
       clearTimeout(timer);
     }
