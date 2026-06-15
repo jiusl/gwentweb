@@ -225,21 +225,24 @@ ${collectSkills(
 
     const cardNames = p.hand.map(c => `"${c.name}"`).join(',');
 
-    // ── 超精简 prompt (目标 <400 tokens) ──
+    // 紧凑上下文 + 清晰的输出指令
     const lines = [
-      '昆特牌AI。只输出JSON。',
-      `阵营:${this._context?.faction || '?'} 比分:${p.score}-${opp.score} 局:${game.currentRound || '?'} 胜:${p.roundsWon}-${opp.roundsWon}`,
-      `对手 近:${fmtCards(opp.melee)} 远:${fmtCards(opp.ranged)} 攻:${fmtCards(opp.siege)} 手:${opp.hand.length}张${opp.passed ? ' 已pass' : ''}`,
-      `我方 近:${fmtCards(p.melee)} 远:${fmtCards(p.ranged)} 攻:${fmtCards(p.siege)}`,
-      `手牌:${fmtHand(p.hand)}`,
-      `操作:{"tool":"play_card","args":{"card_name":"卡名"}}或{"tool":"pass_turn","args":{}}`,
-      `卡名:${cardNames}`,
+      `${this._context?.faction || '?'} ${p.score}-${opp.score} 局${game.currentRound || '?'}(${p.roundsWon}-${opp.roundsWon})`,
+      `敌 ${fmtCards(opp.melee)}|${fmtCards(opp.ranged)}|${fmtCards(opp.siege)} 手${opp.hand.length}${opp.passed ? 'P' : ''}`,
+      `我 ${fmtCards(p.melee)}|${fmtCards(p.ranged)}|${fmtCards(p.siege)}`,
+      `牌 ${fmtHand(p.hand)}`,
     ];
 
-    // 规则提示（只保留最关键的）
-    if (p.hand.some(c => c.isSpy) || p.hand.some(c => c.isMedic) || p.hand.some(c => c.isMuster)) {
-      lines.push('规则:英雄免疫负面,间谍打对方抽2,医生复活墓地,召集拉同名,天气影响双方');
-    }
+    let ruleLine = '';
+    if (p.hand.some(c => c.isSpy)) ruleLine += '间谍给对手抽2 ';
+    if (p.hand.some(c => c.isMedic)) ruleLine += '医生复活墓地 ';
+    if (p.hand.some(c => c.isMuster)) ruleLine += '召集拉同名 ';
+    if (p.hand.some(c => c.isHero)) ruleLine += '英雄免疫 ';
+    if (ruleLine) lines.push(ruleLine.trim());
+
+    lines.push(`可选 ${cardNames}`);
+    lines.push('输出 {"tool":"play_card","args":{"card_name":"卡名"}}
+或 {"tool":"pass_turn","args":{}}');
 
     return lines.join('\n');
   }
