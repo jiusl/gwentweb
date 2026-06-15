@@ -1,6 +1,6 @@
 {
-  "model": "qwen-gwent-agent",
+  "model": "qwen2.5:1.5b",
   "baseUrl": "http://localhost:11434",
-  "temperature": 0.3,
-  "timeout": 20000
+  "temperature": 0.1,
+  "timeout": 15000
 }

@@ -53,7 +53,7 @@ class OllamaAgent extends AIInterface {
     }
     this.options = { ...getDefaultOptions(), ...filteredOptions };
     this._history = [];
-    this._maxRetries = filteredOptions.maxRetries ?? 2;
+    this._maxRetries = filteredOptions.maxRetries ?? 1;  // 1 次重试 = 最多 2 次调用，约 10s
     this._useSkills = filteredOptions.useSkills !== false;
     this._useTools = filteredOptions.useTools !== false;
   }
@@ -144,7 +144,7 @@ ${collectSkills(
     for (let attempt = 0; attempt <= this._maxRetries; attempt++) {
       try {
         const retryHint = attempt > 0 && lastError
-          ? `\n\n【上一次调用失败】${lastError}\n请修正你的工具调用，确保参数正确。`
+          ? `\n【修正】上次失败:${lastError}`
           : '';
 
         const fullPrompt = prompt + retryHint;
@@ -208,67 +208,40 @@ ${collectSkills(
     const opp = game.players[oppId];
 
     const fmtCards = (cards) =>
-      cards.map(c => `${c.name}(${c.power}${c.isHero ? '/英雄' : ''})`).join(', ') || '无';
+      cards.map(c => `${c.name}(${c.power}${c.isHero ? 'H' : ''})`).join(',') || '-';
 
-    const fmtRow = (label, cards) => `  ${label}: ${fmtCards(cards)}`;
+    // 紧凑手牌: 卡名(战力/H/间谍/医生/天气/同袍)
+    const fmtHand = (cards) =>
+      cards.map(c => {
+        const tags = [];
+        if (c.isHero) tags.push('H');
+        if (c.isSpy) tags.push('间谍');
+        if (c.isMedic) tags.push('医生');
+        if (c.isMuster) tags.push('召集');
+        if (c.type === 'special' && c.ability?.startsWith('weather')) tags.push('天气');
+        const tagStr = tags.length > 0 ? '/' + tags.join('/') : '';
+        return `${c.name}(${c.power}${tagStr})`;
+      }).join(',');
 
-    // ── 基本信息 ──
-    let prompt = `你是昆特牌（Gwent）游戏的AI对手。你必须使用工具来执行操作，只输出JSON格式的工具调用，不要添加任何解释。
+    const cardNames = p.hand.map(c => `"${c.name}"`).join(',');
 
-【你的阵营】${this._context?.faction || '未知'}
-【你的领袖】${this._context?.leader || '无'}
+    // ── 超精简 prompt (目标 <400 tokens) ──
+    const lines = [
+      '昆特牌AI。只输出JSON。',
+      `阵营:${this._context?.faction || '?'} 比分:${p.score}-${opp.score} 局:${game.currentRound || '?'} 胜:${p.roundsWon}-${opp.roundsWon}`,
+      `对手 近:${fmtCards(opp.melee)} 远:${fmtCards(opp.ranged)} 攻:${fmtCards(opp.siege)} 手:${opp.hand.length}张${opp.passed ? ' 已pass' : ''}`,
+      `我方 近:${fmtCards(p.melee)} 远:${fmtCards(p.ranged)} 攻:${fmtCards(p.siege)}`,
+      `手牌:${fmtHand(p.hand)}`,
+      `操作:{"tool":"play_card","args":{"card_name":"卡名"}}或{"tool":"pass_turn","args":{}}`,
+      `卡名:${cardNames}`,
+    ];
 
-【当前比分】你 ${p.score} - ${opp.score} 对手
-【当前轮次】第${game.currentRound || '?'}局
-【小局胜场】你 ${p.roundsWon} - ${opp.roundsWon} 对手
-${opp.passed ? '【注意】对手已放弃本轮\n' : ''}${p.passed ? '【注意】你已放弃本轮\n' : ''}
-【对手战场】
-${fmtRow('近战', opp.melee)}
-${fmtRow('远程', opp.ranged)}
-${fmtRow('攻城', opp.siege)}
-  手牌: ${opp.hand.length}张  牌组剩余: ${opp.deck.length}张  墓地: ${opp.graveyard.length}张
-
-【你的战场】
-${fmtRow('近战', p.melee)}
-${fmtRow('远程', p.ranged)}
-${fmtRow('攻城', p.siege)}
-  墓地: ${p.graveyard.length}张
-
-【你的手牌（共${p.hand.length}张）】
-${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special' ? '特殊牌' : c.row || '任意'}排${c.isHero ? ' | 英雄' : ''}${c.ability ? ' | ' + c.ability : ''}${c.isSpy ? ' | 间谍' : ''}${c.isMedic ? ' | 医生' : ''}${c.isMuster ? ' | 召集' : ''}`).join('\n')}
-`;
-
-    // ── 技能注入 ──
-    if (this._useSkills) {
-      const skillsText = collectSkills(game, playerId);
-      if (skillsText) {
-        prompt += '\n' + skillsText + '\n';
-      }
+    // 规则提示（只保留最关键的）
+    if (p.hand.some(c => c.isSpy) || p.hand.some(c => c.isMedic) || p.hand.some(c => c.isMuster)) {
+      lines.push('规则:英雄免疫负面,间谍打对方抽2,医生复活墓地,召集拉同名,天气影响双方');
     }
 
-    // ── 工具定义 ──
-    if (this._useTools) {
-      prompt += '\n' + buildToolPrompt() + '\n';
-    }
-
-    // ── 可用卡牌名（防 LLM 幻觉）──
-    const cardNames = p.hand.map(c => `"${c.name}"`).join('、');
-    prompt += `\n【重要约束】你只能从以下手牌名中选择 card_name 参数: ${cardNames}`;
-
-    // ── 特殊规则 ──
-    prompt += `
-【重要规则】
-- 英雄牌免疫天气/号角/烧灼
-- 间谍牌打到对方场上，我方抽2张牌
-- 医生牌打出后自动复活己方墓地最高战力非英雄单位
-- 召集牌打出后自动拉出所有同名卡
-- 诱饵牌收回己方一张非英雄单位
-- 天气牌影响双方同排非英雄单位
-- 烧灼摧毁全场最高战力非英雄单位（含己方！）
-
-请选择最优工具调用：`;
-
-    return prompt;
+    return lines.join('\n');
   }
 
   // ──────── API 调用 ────────
@@ -298,7 +271,11 @@ ${p.hand.map((c, i) => `  - ${c.name} | 战力${c.power} | ${c.type === 'special
           prompt,
           stream: false,
           format: 'json',
-          options: { temperature },
+          options: {
+            temperature,
+            num_predict: 40,     // JSON 最大约 30 token，40 足够
+          },
+          keep_alive: '5m',      // 保持模型在内存中，避免重复加载 (4.5s)
         }),
         signal: controller.signal,
       });
