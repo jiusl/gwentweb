@@ -241,8 +241,8 @@ ${collectSkills(
     if (ruleLine) lines.push(ruleLine.trim());
 
     lines.push(`可选 ${cardNames}`);
-    lines.push('输出 {"tool":"play_card","args":{"card_name":"卡名"}}
-或 {"tool":"pass_turn","args":{}}');
+    lines.push('输出 {"tool":"play_card","args":{"card_name":"卡名"}}');
+    lines.push('或 {"tool":"pass_turn","args":{}}');
 
     return lines.join('\n');
   }
