@@ -146,8 +146,13 @@ class GameManager {
     if (!validRows.includes(row)) return { success: false, error: '无效的排类型' };
 
     if (card.row && card.row !== row) {
-      const rowNames = { melee: '近战', ranged: '远程', siege: '攻城' };
-      return { success: false, error: `「${card.name}」只能放在${rowNames[card.row]}排` };
+      // 敏捷卡牌可放在 agileRows 指定的任意排
+      if (card.isAgile && card.agileRows && card.agileRows.includes(row)) {
+        // 允许放置
+      } else {
+        const rowNames = { melee: '近战', ranged: '远程', siege: '攻城' };
+        return { success: false, error: `「${card.name}」只能放在${rowNames[card.row]}排` };
+      }
     }
 
     // 从手牌移除
@@ -155,7 +160,7 @@ class GameManager {
 
     // ── 间谍：放到对方场上，己方抽2张 ──
     if (card.isSpy) {
-      const spyRow = card.row || row;
+      const spyRow = card.isAgile ? row : (card.row || row);
       opponent[spyRow].push(card);
       events.push({ type: 'spy', card: card.name, target: opponentId });
 
@@ -226,7 +231,7 @@ class GameManager {
 
     // ── 打出后触发号角（丹德里恩 / 英雄副技能）──
     if (card.ability === ABILITIES.HORN || card.heroAbility === ABILITIES.HORN) {
-      const hornRow = card.row || 'melee';
+      const hornRow = card.isAgile ? row : (card.row || 'melee');
       game.horn[playerId][hornRow] = true;
       events.push({ type: 'horn', player: playerId, row: hornRow });
     }

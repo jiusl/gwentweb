@@ -349,10 +349,16 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
                     </Text>
                   </Box>
                   <Flex direction="column" align="flex-end" gap="1px">
-                    {card.row && <Text fontSize="11px" lineHeight="1">{{melee:'⚔️',ranged:'🏹',siege:'🏰'}[card.row]}</Text>}
+                    {card.isAgile && <Text fontSize="11px" lineHeight="1" title="敏捷：近战/远程可选">⚔️🏹</Text>}
+                    {!card.isAgile && card.row && <Text fontSize="11px" lineHeight="1">{{melee:'⚔️',ranged:'🏹',siege:'🏰'}[card.row]}</Text>}
                     {abilityIcon && (
                       <MouseTooltip content={ABILITY_DESC[card.ability] || `${abilityLabel}`} maxW="160px">
                         <Text fontSize="11px" cursor="help" lineHeight="1">{abilityIcon}</Text>
+                      </MouseTooltip>
+                    )}
+                    {card.isAgile && (
+                      <MouseTooltip content={ABILITY_DESC.agile} maxW="160px">
+                        <Text fontSize="11px" cursor="help" lineHeight="1">{ABILITY_ICON.agile}</Text>
                       </MouseTooltip>
                     )}
                   </Flex>
@@ -404,9 +410,12 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
                   { row: 'siege', label: '🏰 攻城', desc: 'Siege' },
                 ];
                 const isHorn = card?.type === 'special' && card?.ability === 'commanders_horn';
-                const availableRows = card?.type === 'unit' && card?.row
-                  ? allRows.filter(r => r.row === card.row)
-                  : allRows;
+                const isAgile = card?.type === 'unit' && card?.isAgile;
+                const availableRows = isAgile
+                  ? allRows.filter(r => card.agileRows?.includes(r.row))
+                  : card?.type === 'unit' && card?.row
+                    ? allRows.filter(r => r.row === card.row)
+                    : allRows;
                 return (
                   <Box
                     position="absolute" left="calc(100% + 10px)" top="0"
@@ -414,7 +423,7 @@ function GameBoard({ gameState, isMyTurn, onPlayCard, onPass, onUseLeader, cardE
                     p={3.5} borderRadius="4px" border="1px solid rgba(200,169,110,0.25)" bg="rgba(24,20,14,0.96)"
                     w="175px" boxShadow="0 8px 40px rgba(0,0,0,0.7)">
                     <Text fontSize="13px" fontWeight="500" color="#e0d3b8" mb={2.5} textAlign="center" fontFamily="Georgia, serif">
-                      {isHorn ? '📯 号角加强' : <><Text as="span" fontWeight="700" color="#d4b87a">「{card?.name}」</Text></>}
+                      {isHorn ? '📯 号角加强' : isAgile ? <><Text as="span" fontWeight="700" color="#d4b87a">「{card?.name}」</Text> <Text as="span" fontSize="10px" color="#baaa8a">敏捷-可选近战/远程</Text></> : <><Text as="span" fontWeight="700" color="#d4b87a">「{card?.name}」</Text></>}
                     </Text>
                     <Flex direction="column" gap={1.5}>
                       {availableRows.map(({ row, label, desc }) => (

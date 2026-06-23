@@ -21,6 +21,7 @@ const ABILITIES = {
   CLEAR_WEATHER: 'clear_weather',
   DECOY: 'decoy',
   COMMANDERS_HORN: 'commanders_horn',
+  AGILE: 'agile',
 };
 
 // ── 稀有度 ──
@@ -28,7 +29,7 @@ const RARITY = { COMMON: 'common', RARE: 'rare', LEGENDARY: 'legendary', SPECIAL
 
 // ── 基础卡牌类（属性存为普通字段，防浅拷贝丢失）──
 class Card {
-  constructor(id, name, type, power, faction, row = null, ability = null, heroAbility = null) {
+  constructor(id, name, type, power, faction, row = null, ability = null, heroAbility = null, agileRows = null) {
     this.id = id;
     this.name = name;
     this.type = type;
@@ -37,6 +38,7 @@ class Card {
     this.row = row;
     this.ability = ability;
     this.heroAbility = heroAbility; // 英雄牌的副技能（如叶奈法的 medic、神秘精灵的 spy）
+    this.agileRows = agileRows;     // 敏捷卡牌可选排（如 ['melee', 'ranged']）
     // 标记字段（普通属性，非 getter）
     this.isHero = ability === ABILITIES.HERO;
     this.isSpy = ability === ABILITIES.SPY || heroAbility === ABILITIES.SPY;
@@ -45,6 +47,7 @@ class Card {
     this.isTightBond = ability === ABILITIES.TIGHT_BOND || heroAbility === ABILITIES.TIGHT_BOND;
     this.isMoraleBoost = ability === ABILITIES.MORALE_BOOST || heroAbility === ABILITIES.MORALE_BOOST;
     this.isScorch = ability === ABILITIES.SCORCH || heroAbility === ABILITIES.SCORCH;
+    this.isAgile = !!agileRows;
     // 稀有度
     if (type === 'special') this.rarity = RARITY.SPECIAL;
     else if (this.isHero) this.rarity = RARITY.LEGENDARY;
@@ -55,9 +58,9 @@ class Card {
 
 // ── 创建辅助 ──
 let _id = 0;
-function mk(name, power, faction, row, ability = null, heroAbility = null) {
+function mk(name, power, faction, row, ability = null, heroAbility = null, agileRows = null) {
   _id++;
-  return new Card(String(_id), name, 'unit', power, faction, row, ability, heroAbility);
+  return new Card(String(_id), name, 'unit', power, faction, row, ability, heroAbility, agileRows);
 }
 function mkSp(name, ability) {
   _id++;
@@ -150,16 +153,16 @@ const sLeaders = [
 ];
 const s = {
   '玛哈坎守卫':       mk('玛哈坎守卫', 5, S, 'melee'),
-  '矮人散兵':         mk('矮人散兵', 3, S, 'melee', ABILITIES.MUSTER),
+  '矮人散兵':         mk('矮人散兵', 3, S, 'melee', ABILITIES.MUSTER, null, ['melee', 'ranged']),
   '哈维卡走私者':     mk('哈维卡走私者', 5, S, 'melee', ABILITIES.MUSTER),
   '巴克莱·艾尔斯':   mk('巴克莱·艾尔斯', 6, S, 'melee'),
   '丹尼斯·克兰默':   mk('丹尼斯·克兰默', 6, S, 'melee'),
-  '精灵散兵':         mk('精灵散兵', 2, S, 'ranged', ABILITIES.MUSTER),
-  '多尔布雷坦纳弓箭手': mk('多尔布雷坦纳弓箭手', 4, S, 'ranged'),
-  '多尔布雷坦纳斥候': mk('多尔布雷坦纳斥候', 6, S, 'ranged'),
+  '精灵散兵':         mk('精灵散兵', 2, S, 'ranged', ABILITIES.MUSTER, null, ['melee', 'ranged']),
+  '多尔布雷坦纳弓箭手': mk('多尔布雷坦纳弓箭手', 4, S, 'ranged', null, null, ['melee', 'ranged']),
+  '多尔布雷坦纳斥候': mk('多尔布雷坦纳斥候', 6, S, 'ranged', null, null, ['melee', 'ranged']),
   '哈维卡治疗者':     mk('哈维卡治疗者', 0, S, 'ranged', ABILITIES.MEDIC),
-  '维里赫德旅新兵':   mk('维里赫德旅新兵', 4, S, 'ranged'),
-  '维里赫德旅老兵':   mk('维里赫德旅老兵', 5, S, 'melee'),
+  '维里赫德旅新兵':   mk('维里赫德旅新兵', 4, S, 'ranged', null, null, ['melee', 'ranged']),
+  '维里赫德旅老兵':   mk('维里赫德旅老兵', 5, S, 'melee', null, null, ['melee', 'ranged']),
   '托鲁维尔':         mk('托鲁维尔', 2, S, 'ranged'),
   '里奥丹':           mk('里奥丹', 1, S, 'ranged'),
   '夏拉韦':           mk('夏拉韦', 3, S, 'ranged'),

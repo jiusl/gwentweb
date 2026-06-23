@@ -14,7 +14,7 @@ router.get('/cards', (req, res) => {
     rarity: c.rarity, isHero: c.isHero, isSpy: c.isSpy,
     isMedic: c.isMedic, isMuster: c.isMuster,
     isTightBond: c.isTightBond, isMoraleBoost: c.isMoraleBoost,
-    isScorch: c.isScorch,
+    isScorch: c.isScorch, isAgile: c.isAgile, agileRows: c.agileRows,
   }));
   // 阵营信息（含领袖）
   const factionInfo = {};

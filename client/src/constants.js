@@ -4,6 +4,7 @@ export const ABILITY_ICON = {
   morale_boost: '📯', scorch: '🔥', horn: '📯',
   weather_frost: '❄️', weather_fog: '🌫️', weather_rain: '🌧️', clear_weather: '☀️',
   commanders_horn: '📯', decoy: '🃏', scorch_melee: '🔥', scorch_siege: '🔥',
+  agile: '🏹',
 };
 
 // 技能标签（简短）
@@ -13,6 +14,7 @@ export const ABILITY_LABEL = {
   horn: '号角', decoy: '诱饵', commander_horn: '指挥号角',
   weather_frost: '霜冻', weather_fog: '浓雾', weather_rain: '暴雨',
   clear_weather: '晴天', scorch_melee: '烧灼', scorch_siege: '烧灼',
+  agile: '敏捷',
 };
 
 // 技能描述
@@ -33,6 +35,7 @@ export const ABILITY_DESC = {
   weather_fog: '浓雾 — 双方远程排所有非英雄单位战力变为1',
   weather_rain: '暴雨 — 双方攻城排所有非英雄单位战力变为1',
   clear_weather: '晴天 — 清除场上所有天气效果',
+  agile: '敏捷 — 可在近战或远程排之间自由选择放置',
 };
 
 // 排标签
@@ -40,7 +43,7 @@ export const ROW_LABEL = { melee: '⚔️ 近战', ranged: '🏹 远程', siege:
 
 // 稀有度
 export const RARITY_COLORS = { common: 'gray', rare: 'blue', legendary: 'gold', special: 'purple' };
-export const RARITY_MAX = { common: 3, rare: 1, legendary: 1, special: 1 };
+export const RARITY_MAX = { common: 3, rare: 1, legendary: 1, special: 2 };
 
 // 阵营
 export const FACTION_NAME = {

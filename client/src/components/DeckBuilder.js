@@ -172,7 +172,11 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
           const abilityDesc = card.ability ? ABILITY_DESC[card.ability] : null;
           const heroAbilityIcon = card.heroAbility ? ABILITY_ICON[card.heroAbility] : null;
           const heroAbilityDesc = card.heroAbility ? ABILITY_DESC[card.heroAbility] : null;
-          const rowLabel = card.row ? ROW_LABEL[card.row] : '';
+          const agileIcon = card.isAgile ? ABILITY_ICON.agile : null;
+          const agileRowLabel = card.isAgile && card.agileRows
+            ? card.agileRows.map(r => ROW_LABEL[r]).join(' / ')
+            : '';
+          const rowLabel = card.isAgile ? '' : (card.row ? ROW_LABEL[card.row] : '');
           const typeLabel = card.isHero ? '⭐英雄' : card.type === 'special' ? '✨特殊' : '单位';
           const can = canAdd(card);
           return (
@@ -182,9 +186,10 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
                   {abilityIcon && `${abilityIcon} `}{card.name} · {typeLabel} · {card.power}⚡
                 </Text>
                 {rowLabel && <Text color="#baaa8a">📌 {rowLabel}</Text>}
+                {card.isAgile && <Text color="#5a8a4a">🏹 敏捷 — {agileRowLabel}</Text>}
                 {abilityDesc && <Text color="#d4b87a" mt={1}>{abilityDesc}</Text>}
                 {heroAbilityDesc && <Text color="#e2c88a" mt={1}>{heroAbilityDesc.replace(/^([^-]+)/, '副技能·$1')}</Text>}
-                {!abilityDesc && !card.isHero && card.type === 'unit' && !heroAbilityDesc && (
+                {!abilityDesc && !card.isHero && card.type === 'unit' && !heroAbilityDesc && !card.isAgile && (
                     <Text color="#8a7a5a" mt={1}>无特殊技能</Text>
                 )}
               </>
@@ -202,6 +207,7 @@ export default function DeckBuilder({ deck, setDeck, leader, setLeader, selected
                 _hover={can ? { bg: '#3a3024', borderColor: 'rgba(200,169,110,0.4)' } : {}}
                 onClick={() => addCard(card)}
               >
+                {agileIcon && <Text as="span" mr={0.5} fontSize="9px" flexShrink={0} color="#5a8a4a">{agileIcon}</Text>}
                 {abilityIcon && <Text as="span" mr={0.5} fontSize="9px" flexShrink={0}>{abilityIcon}</Text>}
                 {heroAbilityIcon && <Text as="span" mr={0.5} fontSize="9px" flexShrink={0}>{heroAbilityIcon}</Text>}
                 <Text truncate flex="1" minW={0} textAlign="left">{card.name}</Text>

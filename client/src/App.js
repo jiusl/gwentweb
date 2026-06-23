@@ -345,11 +345,14 @@ function App() {
                     const desc = card.ability ? ABILITY_DESC[card.ability] : null;
                     const heroIcon = card.heroAbility ? ABILITY_ICON[card.heroAbility] : null;
                     const heroDesc = card.heroAbility ? ABILITY_DESC[card.heroAbility] : null;
+                    const agileIcon = card.isAgile ? ABILITY_ICON.agile : null;
+                    const agileDesc = card.isAgile ? ABILITY_DESC.agile : null;
                     return (
                       <MouseTooltip key={i} content={
                         <>
                           <Text fontWeight="bold">{card.name}</Text>
                           <Text color="#baaa8a">{card.type === 'special' ? '✨特殊牌' : card.isHero ? '⭐英雄' : '单位'} · {card.power}⚡</Text>
+                          {agileDesc && <Text color="#5a8a4a" mt={1}>{agileDesc}</Text>}
                           {desc && <Text color="#d4b87a" mt={1}>{desc}</Text>}
                           {heroDesc && <Text color="#e2c88a" mt={1}>副技能·{heroDesc}</Text>}
                           <Text color="#8a7a5a" mt={1}>点击移除</Text>
@@ -364,7 +367,7 @@ function App() {
                             setDeck(newDeck);
                           }}
                         >
-                          {icon && `${icon} `}{heroIcon && `${heroIcon} `}{card.name} {card.power > 0 ? card.power : ''}
+                          {agileIcon && `${agileIcon} `}{icon && `${icon} `}{heroIcon && `${heroIcon} `}{card.name} {card.power > 0 ? card.power : ''}
                         </Badge>
                       </MouseTooltip>
                     );
