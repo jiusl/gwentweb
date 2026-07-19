@@ -210,7 +210,8 @@ class GameManager {
         }
         const gIdx = player.graveyard.indexOf(toRevive);
         player.graveyard.splice(gIdx, 1);
-        const reviveRow = toRevive.row || 'melee';
+        // 敏捷卡牌复活到其敏捷排位之一（优先近战），普通卡复活到原排位
+        const reviveRow = toRevive.row || (toRevive.agileRows ? toRevive.agileRows[0] : 'melee');
         player[reviveRow].push(toRevive);
         events.push({ type: 'medic', revived: toRevive.name });
       }
@@ -414,32 +415,62 @@ class GameManager {
     const playerIds = Object.keys(game.players);
     const isAIGame = playerIds.some(pid => pid.startsWith('ai_'));
 
-    // 找到真人玩家和 AI
-    const humanPlayerId = playerIds.find(pid => !pid.startsWith('ai_'));
-    const aiPlayerId = playerIds.find(pid => pid.startsWith('ai_'));
+    if (isAIGame) {
+      // 人机对战：单个真人玩家 + AI
+      const humanPlayerId = playerIds.find(pid => !pid.startsWith('ai_'));
+      const aiPlayerId = playerIds.find(pid => pid.startsWith('ai_'));
 
-    const humanP = game.players[humanPlayerId];
-    const aiP = aiPlayerId ? game.players[aiPlayerId] : null;
+      const humanP = game.players[humanPlayerId];
+      const aiP = aiPlayerId ? game.players[aiPlayerId] : null;
 
-    const humanWon = game.gameWinner === humanPlayerId;
+      const humanWon = game.gameWinner === humanPlayerId;
 
-    // 通过玩家名查找或创建数据库用户（而非硬编码 ID=1）
-    const humanName = game.humanName || 'anonymous';
-    const dbUser = dbUtils.findOrCreateUser(humanName);
-    const humanDbId = dbUser ? dbUser.id : 1;
+      const humanName = game.humanName || 'anonymous';
+      const dbUser = dbUtils.findOrCreateUser(humanName);
+      const humanDbId = dbUser ? dbUser.id : 1;
 
-    await dbUtils.saveMatch({
-      matchUuid: game.gameId,
-      player1Id: humanDbId,
-      player2Id: null,                       // NULL 表示 AI 对战
-      winnerId: humanWon ? humanDbId : null,
-      player1Score: humanP ? humanP.roundsWon : 0,
-      player2Score: aiP ? aiP.roundsWon : 0,
-      roundsPlayed: game.currentRound,
-      matchType: isAIGame ? 'vs_ai' : 'casual',
-    });
+      await dbUtils.saveMatch({
+        matchUuid: game.gameId,
+        player1Id: humanDbId,
+        player2Id: null,
+        winnerId: humanWon ? humanDbId : null,
+        player1Score: humanP ? humanP.roundsWon : 0,
+        player2Score: aiP ? aiP.roundsWon : 0,
+        roundsPlayed: game.currentRound,
+        matchType: 'vs_ai',
+      });
 
-    console.log(`💾 对局 ${game.gameId} 已保存 (${isAIGame ? 'vs_ai' : 'casual'}, 用户: ${humanName})`);
+      console.log(`💾 对局 ${game.gameId} 已保存 (vs_ai, 用户: ${humanName})`);
+    } else {
+      // PvP：两个真人玩家
+      const [p1Id, p2Id] = playerIds;
+      const p1 = game.players[p1Id];
+      const p2 = game.players[p2Id];
+
+      const p1Name = game.humanName || 'player1';
+      const p2Name = game.humanName2 || 'player2';
+      const dbUser1 = dbUtils.findOrCreateUser(p1Name);
+      const dbUser2 = dbUtils.findOrCreateUser(p2Name);
+      const dbId1 = dbUser1 ? dbUser1.id : 1;
+      const dbId2 = dbUser2 ? dbUser2.id : 2;
+
+      let winnerDbId = null;
+      if (game.gameWinner === p1Id) winnerDbId = dbId1;
+      else if (game.gameWinner === p2Id) winnerDbId = dbId2;
+
+      await dbUtils.saveMatch({
+        matchUuid: game.gameId,
+        player1Id: dbId1,
+        player2Id: dbId2,
+        winnerId: winnerDbId,
+        player1Score: p1.roundsWon,
+        player2Score: p2.roundsWon,
+        roundsPlayed: game.currentRound,
+        matchType: 'casual',
+      });
+
+      console.log(`💾 对局 ${game.gameId} 已保存 (casual, ${p1Name} vs ${p2Name})`);
+    }
   }
 
   // 小局结算（对外 API，可手动调用）

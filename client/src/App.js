@@ -69,7 +69,7 @@ function App() {
       toaster.create({ title: '卡组不足', description: '至少需要22张单位卡才能接受对战', type: 'warning' });
       return;
     }
-    respondInvite(inviteId, true);
+    respondInvite(inviteId, true, deck, leader);
   };
 
   const handleRejectInvite = (inviteId) => {

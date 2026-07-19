@@ -111,9 +111,9 @@ export const useWebSocket = () => {
     }
   }, []);
 
-  const respondInvite = useCallback((inviteId, accept) => {
+  const respondInvite = useCallback((inviteId, accept, deck = null, leader = null) => {
     if (socketRef.current) {
-      socketRef.current.emit('respondInvite', { inviteId, accept });
+      socketRef.current.emit('respondInvite', { inviteId, accept, deck, leader });
       setIncomingInvite(null);
       incomingInviteRef.current = null;
     }

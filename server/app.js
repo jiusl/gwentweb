@@ -54,6 +54,7 @@ const aiGameToLobbyId = new Map();
 const socketToPlayer = new Map();   // socketId → playerId
 const lobbyPlayers = new Map();     // playerId → { id, name, status, isAI, faction }
 const pendingInvites = new Map();   // inviteId → { from, to, timestamp }
+const pendingDecks = new Map();     // inviteId → { deck, leader }  (invitee 的卡组)
 const AI_PLAYER_ID = 'ai_player';       // AI哥1 → HeuristicAI
 const AI_PLAYER_2_ID = 'ai_player2';   // AI哥2 → OllamaAgent
 const AI_DELAY_MS = 1500;
@@ -251,6 +252,23 @@ function _cleanupPlayerGames(playerId, socket, io) {
     _finalizeGameEnd(gameId, io);
   }
 }
+function _broadcastGameState(gameId, io) {
+  const game = gameManager.activeGames.get(gameId);
+  if (!game) return;
+  const playerIds = Object.keys(game.players);
+  for (const pid of playerIds) {
+    // 跳过 AI 玩家（它们没有 socket 连接）
+    if (pid.startsWith('ai_')) continue;
+    const state = gameManager.getClientGameState(gameId, pid);
+    for (const [sid, mid] of socketToPlayer.entries()) {
+      if (mid === pid) {
+        io.to(sid).emit('gameStateUpdate', state);
+        break;
+      }
+    }
+  }
+}
+
 function _autoStartNextRound(gameId, io) {
   const game = gameManager.activeGames.get(gameId);
   if (!game || game.status !== 'roundEnd') return;
@@ -300,7 +318,7 @@ function _sendInvite(io, fromId, targetId) {
 function _acceptInvite(io, inviteId, targetId, fromId) {
   const inv = pendingInvites.get(inviteId);
   if (!inv) { console.log(`⚠️ _acceptInvite: 邀请 ${inviteId} 不存在`); return; }
-  pendingInvites.delete(inviteId);
+  // 不在这里删除 pendingInvites，_startMatch 还需要用它查找 pendingDecks
   console.log(`✅ 邀请已接受: ${fromId} ← ${targetId}, inviteId=${inviteId}`);
   // 通知发起人
   for (const [sid, pid] of socketToPlayer.entries()) {
@@ -341,6 +359,22 @@ function _startMatch(io, player1Id, player2Id, deck1, leader1) {
   if (isAI) {
     aiGameToLobbyId.set(actualP2Id, player2Id);
   }
+
+  // ── 获取对手卡组 (PvP: 从 pendingDecks 取；AI: 自动生成) ──
+  let deck2 = null, leader2 = null;
+  if (!isAI) {
+    // PvP: 查找 invitee 通过 respondInvite 提供的卡组
+    for (const [iid, inv] of pendingInvites.entries()) {
+      if (inv.from === player1Id && inv.to === player2Id) {
+        const pd = pendingDecks.get(iid);
+        if (pd) { deck2 = pd.deck; leader2 = pd.leader; }
+        pendingDecks.delete(iid);
+        pendingInvites.delete(iid);  // 对战开始后清理邀请
+        break;
+      }
+    }
+  }
+
   // 检测玩家阵营 → 为 AI 选择克制阵营
   let aiFaction = 'northern';
   if (isAI) {
@@ -349,9 +383,15 @@ function _startMatch(io, player1Id, player2Id, deck1, leader1) {
     aiFaction = getCounterFaction(playerFaction);
     console.log(`🧠 AI 根据玩家阵营 ${playerFaction} → 选择克制阵营 ${aiFaction}`);
   }
-  // 传 leader2=aiFaction（string 类型，gameManager 据此自动选卡组+领袖）
-  const game = gameManager.createGame(player1Id, actualP2Id, deck1, null, leader1, isAI ? aiFaction : null);
+  // AI 对战时传 leader2=aiFaction（string 类型，gameManager 据此自动选卡组+领袖）
+  // PvP 时传对手的实际卡组和领袖
+  const game = gameManager.createGame(
+    player1Id, actualP2Id,
+    deck1, deck2 || null,
+    leader1, isAI ? aiFaction : (leader2 || null)
+  );
   game.humanName = p1?.name;  // 存储玩家名，供 DB 持久化时查找用户
+  if (!isAI) game.humanName2 = p2?.name;  // PvP 对手名
 
   // 通知 AI 对局开始（设置阵营上下文等）
   if (isAI) {
@@ -475,13 +515,18 @@ io.on('connection', (socket) => {
 
   // ── 响应邀请 ──
   socket.on('respondInvite', (data) => {
-    const { inviteId, accept } = data || {};
+    const { inviteId, accept, deck, leader } = data || {};
     const myId = socketToPlayer.get(socket.id);
     const inv = pendingInvites.get(inviteId);
     if (!inv || inv.to !== myId) return;
     if (accept) {
+      // 存储接受者的卡组和领袖（PvP 时使用）
+      if (deck && leader) {
+        pendingDecks.set(inviteId, { deck, leader });
+      }
       _acceptInvite(io, inviteId, myId, inv.from);
     } else {
+      pendingDecks.delete(inviteId);
       _rejectInvite(io, inviteId, myId, inv.from);
       const p = lobbyPlayers.get(inv.from);
       if (p) p.status = 'idle';
@@ -529,7 +574,7 @@ io.on('connection', (socket) => {
     const result = gameManager.playCard(gameId, playerId, cardIndex, row, targetCardId || null);
     if (result.success) {
       lastOpponentAction.set(gameId, { action: 'playCard', playerId, cardIndex, row, cardName: preCard?.name });
-      io.to(gameId).emit('gameStateUpdate', result.gameState);
+      _broadcastGameState(gameId, io);
       if (result.events?.length) io.to(gameId).emit('cardEvents', result.events);
       _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
@@ -542,7 +587,7 @@ io.on('connection', (socket) => {
     const result = gameManager.passTurn(gameId, playerId);
     if (result.success) {
       lastOpponentAction.set(gameId, { action: 'pass', playerId });
-      io.to(gameId).emit('gameStateUpdate', result.gameState);
+      _broadcastGameState(gameId, io);
       _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
   });
@@ -553,7 +598,7 @@ io.on('connection', (socket) => {
     if (!playerId) return;
     const result = gameManager.useLeaderAbility(gameId, playerId, row || null);
     if (result.success) {
-      io.to(gameId).emit('gameStateUpdate', result.gameState);
+      _broadcastGameState(gameId, io);
       if (result.events?.length) io.to(gameId).emit('cardEvents', result.events);
       _handlePostAction(gameId, playerId, io);
     } else socket.emit('error', { message: result.error });
